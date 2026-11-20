@@ -295,7 +295,7 @@ export default function App() {
       setJourneyOpen(false);
       const msg = err instanceof Error ? err.message : "Request failed.";
       setApiError(
-        `Could not reach Gemini right now (${msg}). You can load one of the saved stage campaigns below as an instant backup.`
+        `Could not reach Claude right now (${msg}). You can load one of the saved stage campaigns below as an instant backup.`
       );
     } finally {
       setIsGenerating(false);
