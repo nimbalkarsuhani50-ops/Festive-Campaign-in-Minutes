@@ -1,6 +1,13 @@
-import { AlertCircle, FileDown, Loader2 } from "lucide-react";
-import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { AlertCircle, ArrowRight, FileDown, Loader2 } from "lucide-react";
+import { MotionConfig, motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Hero } from "./components/Hero";
+import { PresenterDock } from "./components/PresenterDock";
+import { AmbientCanvas } from "./fx/AmbientCanvas";
+import { festiveFinale, sparkleFrom } from "./fx/celebrate";
+import { Magnetic, Reveal, SectionHeading, SpotlightCard } from "./fx/primitives";
+import { initSmoothScroll, pauseSmoothScroll, scrollToId } from "./fx/smoothScroll";
+import { makePosterSVG } from "./posters.js";
 import { BigIdeaBanner } from "./components/BigIdeaBanner";
 import { CampaignForm } from "./components/CampaignForm";
 import { ChannelPlanSection } from "./components/ChannelPlanSection";
@@ -68,6 +75,21 @@ export default function App() {
 
   const chartRef = useRef<HTMLDivElement | null>(null);
   const journeyIntervalRef = useRef<number | null>(null);
+  const exportBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [boardKey, setBoardKey] = useState(0);
+
+  useEffect(() => initSmoothScroll(), []);
+  useEffect(() => {
+    pauseSmoothScroll(journeyOpen);
+  }, [journeyOpen]);
+
+  /** Big reveal: fireworks, then glide the audience down to the Big Idea. */
+  function revealBoard(delay = 450) {
+    window.setTimeout(() => {
+      festiveFinale();
+      scrollToId("big-idea", { duration: 1.8 });
+    }, delay);
+  }
 
   useEffect(() => {
     if (!isGenerating && !isRegenerating) {
@@ -180,8 +202,10 @@ export default function App() {
       channel_plan: preset.campaign.channel_plan.map((c) => ({ ...c })),
     });
     setPosterRevealKey((k) => k + 1);
+    setBoardKey((k) => k + 1);
     setValidationError(null);
     setApiError(null);
+    revealBoard(250);
   }
 
   async function completeJourneySmoothly(currentStage: number) {
@@ -191,7 +215,7 @@ export default function App() {
       await new Promise((r) => window.setTimeout(r, 210));
     }
     setJourneyProgress(100);
-    await new Promise((r) => window.setTimeout(r, 340));
+    await new Promise((r) => window.setTimeout(r, 1300));
   }
 
   async function handleGenerate(e: React.FormEvent) {
@@ -260,7 +284,9 @@ export default function App() {
       });
       setPosterSeed((s) => s + 1);
       setPosterRevealKey((k) => k + 1);
+      setBoardKey((k) => k + 1);
       setJourneyOpen(false);
+      revealBoard(700);
     } catch (err) {
       if (journeyIntervalRef.current !== null) {
         window.clearInterval(journeyIntervalRef.current);
@@ -269,7 +295,7 @@ export default function App() {
       setJourneyOpen(false);
       const msg = err instanceof Error ? err.message : "Request failed.";
       setApiError(
-        `Could not reach Gemini right now (${msg}). You can load one of the saved stage campaigns below as an instant backup.`
+        `Could not reach Claude right now (${msg}). You can load one of the saved stage campaigns below as an instant backup.`
       );
     } finally {
       setIsGenerating(false);
@@ -339,6 +365,7 @@ export default function App() {
         chartElement: chartRef.current,
         posterSeed,
       });
+      sparkleFrom(exportBtnRef.current, 60);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "PDF export failed.";
       setApiError(`Could not export PDF (${msg}).`);
@@ -348,7 +375,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden text-slate-100">
+    <MotionConfig reducedMotion="user">
+    <AmbientCanvas />
+    <div className="relative z-10 min-h-screen overflow-x-clip text-slate-100">
       <Header
         hasCampaign={Boolean(campaign)}
         isExportingPdf={isExportingPdf}
@@ -366,7 +395,14 @@ export default function App() {
         elapsedSeconds={elapsedSeconds}
       />
 
-      <main className="mx-auto max-w-7xl space-y-12 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <Hero
+        onStart={() => scrollToId("brief", { duration: 1.5 })}
+        onDemo={() => handleLoadSaved("Diwali - Sweet Shop")}
+      />
+
+      <PresenterDock />
+
+      <main className="mx-auto max-w-7xl space-y-28 px-4 pb-24 pt-10 sm:px-6 sm:space-y-36 lg:px-8">
         <CampaignForm
           input={input}
           selectedPreset={selectedPreset}
@@ -415,40 +451,10 @@ export default function App() {
           </motion.div>
         )}
 
-        {!isGenerating && !campaign && (
-          <motion.section
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="glass-card rounded-2xl px-6 py-14 text-center sm:px-10"
-          >
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-white">
-              Ready for your global stage presentation
-            </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-base text-slate-300">
-              Choose India or an International region above, select your language and style preset, and click{" "}
-              <span className="font-semibold text-[#F28C38]">
-                Generate campaign
-              </span>
-              — or load a saved stage campaign below.
-            </p>
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              {SAVED_CAMPAIGN_KEYS.map((presetKey) => (
-                <button
-                  key={presetKey}
-                  type="button"
-                  onClick={() => handleLoadSaved(presetKey)}
-                  className="rounded-xl border border-white/15 bg-white/[0.05] px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.03] hover:border-[#F28C38] hover:bg-[#F28C38]/15 hover:shadow-[0_0_20px_rgba(242,140,56,0.22)] active:scale-[0.98] whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  {presetKey}
-                </button>
-              ))}
-            </div>
-          </motion.section>
-        )}
+        {!isGenerating && !campaign && <PresetShowcase onLoad={handleLoadSaved} />}
 
         {!isGenerating && campaign && (
-          <div id="campaign-board" className="space-y-12">
+          <div key={boardKey} id="campaign-board" className="space-y-28 sm:space-y-36">
             <BigIdeaBanner
               festival={boardInput.festival}
               brand={boardInput.brand}
@@ -463,9 +469,21 @@ export default function App() {
               language={boardInput.language}
             />
 
-            <InstagramPostsSection posts={campaign.instagram_posts} />
+            <InstagramPostsSection
+              posts={campaign.instagram_posts}
+              brand={boardInput.brand}
+              festival={boardInput.festival}
+              stylePreset={boardInput.stylePreset ?? "Festive Gold"}
+              seed={posterSeed}
+            />
 
-            <ReelScriptSection reelScript={campaign.reel_script} />
+            <ReelScriptSection
+              reelScript={campaign.reel_script}
+              brand={boardInput.brand}
+              festival={boardInput.festival}
+              stylePreset={boardInput.stylePreset ?? "Festive Gold"}
+              seed={posterSeed}
+            />
 
             <ChannelPlanSection
               channelPlan={campaign.channel_plan}
@@ -496,53 +514,111 @@ export default function App() {
               onRegenerateVariation={handleRegeneratePosterVariation}
             />
 
-            <section id="export-section" aria-label="Export Board" className="space-y-4">
-              <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-300">
-                <span className="text-[#F28C38] tabular-nums">08</span>
-                <span aria-hidden="true">·</span>
-                <h2 className="text-base font-bold text-white">Export Board</h2>
-              </div>
-
-              <div className="glass-card glass-card-interactive flex flex-col items-start justify-between gap-5 rounded-2xl p-6 sm:flex-row sm:items-center sm:px-8">
-                <div className="space-y-1">
-                  <h3 className="font-display text-xl font-bold text-white">
-                    One-Page Stage Presentation PDF
-                  </h3>
-                  <p className="text-sm text-slate-300">
-                    Downloads an A4 summary including your Big Idea, taglines, posts, reel script, poster, and budget chart.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={isExportingPdf}
-                  onClick={handleExportPdf}
-                  className="inline-flex items-center gap-2.5 rounded-xl border border-[#D4AF37]/60 bg-white/[0.08] px-6 py-3 text-sm font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:border-[#F28C38] hover:bg-[#F28C38] hover:text-[#080D1A] hover:shadow-[0_0_24px_rgba(242,140,56,0.4)] active:scale-[0.98] disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F28C38] whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  {isExportingPdf ? (
-                    <>
-                      <Loader2
-                        className="h-4 w-4 animate-spin"
-                        aria-hidden="true"
-                      />
-                      <span>Building one-page PDF...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileDown className="h-4 w-4" aria-hidden="true" />
-                      <span>Export board as PDF</span>
-                    </>
-                  )}
-                </button>
-              </div>
+            <section id="export-section" aria-label="Export Board" className="scroll-section space-y-7">
+              <SectionHeading index="08" kicker="Take it with you" title="Export the Board" />
+              <Reveal>
+                <SpotlightCard className="flex flex-col items-start justify-between gap-6 rounded-3xl p-7 sm:flex-row sm:items-center sm:px-10 sm:py-9">
+                  <div className="space-y-1.5">
+                    <h3 className="font-display text-2xl font-bold text-white">One-Page Stage Presentation PDF</h3>
+                    <p className="text-sm text-slate-300 sm:text-base">
+                      An A4 summary with your Big Idea, taglines, posts, reel script, poster, and budget chart.
+                    </p>
+                  </div>
+                  <Magnetic strength={0.2}>
+                    <button
+                      ref={exportBtnRef}
+                      type="button"
+                      disabled={isExportingPdf}
+                      onClick={handleExportPdf}
+                      className="btn-primary inline-flex min-h-[54px] items-center gap-2.5 rounded-2xl px-7 text-base font-bold text-[#090E1A] disabled:opacity-70 whitespace-nowrap"
+                    >
+                      {isExportingPdf ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                          <span>Building one-page PDF...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="h-5 w-5" aria-hidden="true" />
+                          <span>Export board as PDF</span>
+                        </>
+                      )}
+                    </button>
+                  </Magnetic>
+                </SpotlightCard>
+              </Reveal>
             </section>
           </div>
         )}
       </main>
 
-      <footer className="border-t border-white/10 bg-[#070B16]/70 py-6 text-center text-sm text-slate-400">
+      <footer className="border-t border-white/10 bg-[#070B16]/70 py-8 text-center text-sm text-slate-400 backdrop-blur">
         Festive Campaign Board <span aria-hidden="true">·</span> #DYPAICoE Launch <span aria-hidden="true">·</span> Dr. D. Y. Patil B-School, Pune
       </footer>
     </div>
+    </MotionConfig>
+  );
+}
+
+/** Empty state: the three saved stage campaigns as poster cards. */
+function PresetShowcase({ onLoad }: { onLoad: (key: SavedCampaignKey) => void }) {
+  const cards = useMemo(
+    () =>
+      SAVED_CAMPAIGN_KEYS.map((key, i) => {
+        const preset = SAVED_CAMPAIGNS[key];
+        const svg = makePosterSVG(preset.input.festival, 11 + i * 5, "Festive Gold", "instagram_feed").replace(
+          "<svg ",
+          '<svg preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;display:block;" '
+        );
+        return { key, preset, svg };
+      }),
+    []
+  );
+
+  return (
+    <section aria-label="Saved stage campaigns" className="space-y-7">
+      <SectionHeading
+        index="✦"
+        kicker="Or start from a showcase"
+        title="Saved Stage Campaigns"
+        right={<p className="text-sm text-slate-400">Instant, no network needed</p>}
+      />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        {cards.map(({ key, preset, svg }, i) => (
+          <motion.div
+            key={key}
+            initial={{ opacity: 0, y: 50, rotate: i === 0 ? -4 : i === 2 ? 4 : 0 }}
+            whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 1, delay: i * 0.12, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <SpotlightCard
+              tilt={6}
+              onClick={() => onLoad(key)}
+              className="group cursor-pointer overflow-hidden rounded-3xl"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden">
+                <div
+                  className="h-full w-full transition-transform duration-[1.2s] ease-out group-hover:scale-110"
+                  dangerouslySetInnerHTML={{ __html: svg }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F20] via-[#0A0F20]/30 to-transparent" />
+                <span className="absolute left-4 top-4 rounded-full bg-black/50 px-3 py-1 text-xs font-semibold text-[#FFE7A3] backdrop-blur">
+                  {preset.input.festival}
+                </span>
+              </div>
+              <div className="space-y-3 p-6">
+                <p className="font-display text-2xl font-bold text-white">{preset.input.brand}</p>
+                <p className="line-clamp-2 text-sm text-slate-300">{preset.campaign.tagline_en}</p>
+                <p className="inline-flex items-center gap-2 pt-1 text-sm font-semibold text-[#F5B041]">
+                  Load this campaign
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden="true" />
+                </p>
+              </div>
+            </SpotlightCard>
+          </motion.div>
+        ))}
+      </div>
+    </section>
   );
 }

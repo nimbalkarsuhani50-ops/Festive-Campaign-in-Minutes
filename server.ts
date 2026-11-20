@@ -2,36 +2,84 @@ import "dotenv/config";
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { z } from "zod";
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 const SYSTEM_INSTRUCTION =
-  "You are a festive marketing strategist for Indian and global brands. Input: market, region, festival, brand, city, audience, budget with local currency, preferred language, and optional style preset. Return ONLY valid JSON: big_idea (max 20 words), tagline_en (crisp English tagline), tagline_regional (natural, idiomatic festive tagline written in the requested language and its native script, e.g. Devanagari, Tamil, Telugu, Bengali, Kannada, Malayalam, Gujarati, Gurmukhi, Arabic, Simplified Chinese, Japanese, Spanish, French, German, Portuguese, etc.; if English is requested, provide an alternative punchy English tagline), instagram_posts (list of 3: caption, hashtags), reel_script (hook_0_3s, scene_3_10s, cta_10_15s), channel_plan (list of 4-5 items: channel, percent_of_budget summing to 100, why), poster_prompt (a rich visual poster image description with NO text in it). Respect the festival's cultural meaning, no religious mockery, no stereotypes, and match the selected market's local currency and cultural context. Every caption under 30 words.";
+  "You are a festive marketing strategist for Indian and global brands. Input: market, region, festival, brand, city, audience, budget with local currency, preferred language, and optional style preset. Return these fields: big_idea (max 20 words), tagline_en (crisp English tagline), tagline_regional (natural, idiomatic festive tagline written in the requested language and its native script, e.g. Devanagari, Tamil, Telugu, Bengali, Kannada, Malayalam, Gujarati, Gurmukhi, Arabic, Simplified Chinese, Japanese, Spanish, French, German, Portuguese, etc.; if English is requested, provide an alternative punchy English tagline), instagram_posts (list of 3: caption, hashtags), reel_script (hook_0_3s, scene_3_10s, cta_10_15s), channel_plan (list of 4-5 items: channel, percent_of_budget summing to 100, why), poster_prompt (a rich visual poster image description with NO text in it). Respect the festival's cultural meaning, no religious mockery, no stereotypes, and match the selected market's local currency and cultural context. Every caption under 30 words.";
 
-function getGeminiClient(): GoogleGenAI {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("API key is not configured on the server.");
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+
+let anthropic: Anthropic | null = null;
+function getClient(): Anthropic {
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
+    throw new Error("ANTHROPIC_API_KEY is not configured on the server.");
   }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
+  anthropic ??= new Anthropic();
+  return anthropic;
 }
 
-function parseJsonResponse<T>(rawText: string | undefined): T {
-  const cleaned = (rawText ?? "")
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-  return JSON.parse(cleaned) as T;
+const CampaignSchema = z.object({
+  big_idea: z.string(),
+  tagline_en: z.string(),
+  tagline_regional: z.string(),
+  instagram_posts: z.array(z.object({ caption: z.string(), hashtags: z.string() })),
+  reel_script: z.object({
+    hook_0_3s: z.string(),
+    scene_3_10s: z.string(),
+    cta_10_15s: z.string(),
+  }),
+  channel_plan: z.array(
+    z.object({ channel: z.string(), percent_of_budget: z.number(), why: z.string() })
+  ),
+  poster_prompt: z.string(),
+});
+
+const RegenerateSchema = z.object({
+  big_idea: z.string(),
+  tagline_en: z.string(),
+  tagline_regional: z.string(),
+});
+
+/**
+ * One structured-output call to Claude. Low effort keeps the stage demo fast;
+ * server-side fallbacks retry on another model if the request is declined.
+ */
+async function generateStructured<T extends z.ZodType>(
+  schema: T,
+  system: string,
+  userPrompt: string
+): Promise<z.infer<T>> {
+  const response = await getClient().beta.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort: "low", format: betaZodOutputFormat(schema) },
+    system,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+
+  if (response.stop_reason === "refusal") {
+    throw new Error("Claude declined this brief. Try rewording it.");
+  }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("The response was cut off. Please try again.");
+  }
+  if (!response.parsed_output) {
+    throw new Error("Claude returned an unexpected format. Please try again.");
+  }
+  return response.parsed_output as z.infer<T>;
+}
+
+function describeError(err: unknown, fallback: string): string {
+  if (err instanceof Anthropic.AuthenticationError) return "The Anthropic API key was rejected.";
+  if (err instanceof Anthropic.RateLimitError) return "Rate limited by the Anthropic API. Try again in a moment.";
+  if (err instanceof Anthropic.APIError) return `Anthropic API error ${err.status ?? ""}: ${err.message}`.trim();
+  return err instanceof Error ? err.message : fallback;
 }
 
 const app = express();
@@ -60,7 +108,6 @@ app.post("/api/generate", async (req, res) => {
       return;
     }
 
-    const ai = getGeminiClient();
     const formattedBudget = Number(budget).toLocaleString(String(locale) || "en-IN");
     const userPrompt = [
       `Market: ${String(market)}`,
@@ -76,75 +123,11 @@ app.post("/api/generate", async (req, res) => {
       .filter(Boolean)
       .join("\n");
 
-    const response = await ai.models.generateContent({
-      model: "gemini-4-hydrogen",
-      contents: userPrompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.LOW,
-        },
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            big_idea: { type: Type.STRING },
-            tagline_en: { type: Type.STRING },
-            tagline_regional: { type: Type.STRING },
-            instagram_posts: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  caption: { type: Type.STRING },
-                  hashtags: { type: Type.STRING },
-                },
-                required: ["caption", "hashtags"],
-              },
-            },
-            reel_script: {
-              type: Type.OBJECT,
-              properties: {
-                hook_0_3s: { type: Type.STRING },
-                scene_3_10s: { type: Type.STRING },
-                cta_10_15s: { type: Type.STRING },
-              },
-              required: ["hook_0_3s", "scene_3_10s", "cta_10_15s"],
-            },
-            channel_plan: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  channel: { type: Type.STRING },
-                  percent_of_budget: { type: Type.NUMBER },
-                  why: { type: Type.STRING },
-                },
-                required: ["channel", "percent_of_budget", "why"],
-              },
-            },
-            poster_prompt: { type: Type.STRING },
-          },
-          required: [
-            "big_idea",
-            "tagline_en",
-            "tagline_regional",
-            "instagram_posts",
-            "reel_script",
-            "channel_plan",
-            "poster_prompt",
-          ],
-        },
-      },
-    });
-
-    const parsed = parseJsonResponse<Record<string, unknown>>(response.text);
+    const parsed = await generateStructured(CampaignSchema, SYSTEM_INSTRUCTION, userPrompt);
     res.json(parsed);
   } catch (err) {
-    console.error("Gemini /api/generate error:", err);
-    const message =
-      err instanceof Error ? err.message : "Failed to generate campaign.";
-    res.status(500).json({ error: message });
+    console.error("Claude /api/generate error:", err);
+    res.status(500).json({ error: describeError(err, "Failed to generate campaign.") });
   }
 });
 
@@ -174,7 +157,6 @@ app.post("/api/regenerate", async (req, res) => {
       return;
     }
 
-    const ai = getGeminiClient();
     const formattedBudget = Number(budget).toLocaleString(String(locale) || "en-IN");
     const variationSeed = Math.floor(Math.random() * 2147483646) + 1;
 
@@ -201,41 +183,16 @@ app.post("/api/regenerate", async (req, res) => {
       .filter(Boolean)
       .join("\n");
 
-    const response = await ai.models.generateContent({
-      model: "gemini-4-hydrogen",
-      contents: userPrompt,
-      config: {
-        systemInstruction:
-          "You are a festive marketing strategist for Indian and global brands. Return ONLY valid JSON with three fields: big_idea (max 20 words, fresh bold concept), tagline_en, tagline_regional (written natively in the requested language script). Respect the festival's cultural meaning, no religious mockery, no stereotypes, local market context.",
-        responseMimeType: "application/json",
-        seed: variationSeed,
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.LOW,
-        },
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            big_idea: { type: Type.STRING },
-            tagline_en: { type: Type.STRING },
-            tagline_regional: { type: Type.STRING },
-          },
-          required: ["big_idea", "tagline_en", "tagline_regional"],
-        },
-      },
-    });
-
-    const parsed = parseJsonResponse<{
-      big_idea: string;
-      tagline_en: string;
-      tagline_regional: string;
-    }>(response.text);
+    const parsed = await generateStructured(
+      RegenerateSchema,
+      "You are a festive marketing strategist for Indian and global brands. Return three fields: big_idea (max 20 words, fresh bold concept), tagline_en, tagline_regional (written natively in the requested language script). Respect the festival's cultural meaning, no religious mockery, no stereotypes, local market context.",
+      userPrompt
+    );
 
     res.json(parsed);
   } catch (err) {
-    console.error("Gemini /api/regenerate error:", err);
-    const message =
-      err instanceof Error ? err.message : "Failed to regenerate big idea.";
-    res.status(500).json({ error: message });
+    console.error("Claude /api/regenerate error:", err);
+    res.status(500).json({ error: describeError(err, "Failed to regenerate big idea.") });
   }
 });
 

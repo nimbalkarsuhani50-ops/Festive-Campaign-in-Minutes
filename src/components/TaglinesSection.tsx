@@ -1,4 +1,5 @@
-import { motion } from "motion/react";
+import { Globe2, Languages } from "lucide-react";
+import { Reveal, SectionHeading, SplitText, SpotlightCard } from "../fx/primitives";
 import type { RegionalLanguage } from "../types";
 import { CopyButton } from "./CopyButton";
 
@@ -8,66 +9,60 @@ interface TaglinesSectionProps {
   language: RegionalLanguage;
 }
 
-export function TaglinesSection({
-  taglineEn,
-  taglineRegional,
-  language,
-}: TaglinesSectionProps) {
+export function TaglinesSection({ taglineEn, taglineRegional, language }: TaglinesSectionProps) {
   const isRtl = language === "Arabic" || language === "Urdu";
 
   return (
-    <motion.section
-      aria-label="Taglines"
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-      className="space-y-4"
-    >
-      <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-300">
-        <span className="text-[#F28C38] tabular-nums">03</span>
-        <span aria-hidden="true">·</span>
-        <h2 className="text-base font-bold text-white">Campaign Taglines</h2>
-      </div>
+    <section id="taglines" aria-label="Taglines" className="scroll-section space-y-7">
+      <SectionHeading index="03" kicker="Two voices, one idea" title="Campaign Taglines" />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="glass-card glass-card-interactive flex flex-col justify-between gap-6 rounded-2xl p-6 sm:p-8">
-          <div className="space-y-2.5">
-            <p className="text-xs font-semibold tracking-wide text-slate-400">
-              English Tagline
-            </p>
-            <p className="font-display text-2xl sm:text-[1.85rem] font-bold leading-snug text-white">
-              {taglineEn}
-            </p>
-          </div>
-          <div className="flex items-center justify-between border-t border-white/10 pt-4">
-            <span className="text-xs font-medium text-slate-400">Primary hook</span>
-            <CopyButton textToCopy={taglineEn} label="Copy English" />
-          </div>
-        </div>
+        <Reveal>
+          <SpotlightCard className="flex h-full flex-col justify-between gap-10 rounded-3xl p-7 sm:p-10">
+            <div className="space-y-5">
+              <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                <Globe2 className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" /> English
+              </p>
+              <SplitText
+                key={taglineEn}
+                as="p"
+                text={taglineEn}
+                stagger={0.07}
+                className="block font-display text-3xl font-bold leading-[1.15] text-white sm:text-[2.6rem]"
+              />
+            </div>
+            <div className="flex items-center justify-between border-t border-white/10 pt-5">
+              <span className="text-xs font-medium text-slate-400">Primary hook</span>
+              <CopyButton textToCopy={taglineEn} label="Copy English" />
+            </div>
+          </SpotlightCard>
+        </Reveal>
 
-        <div className="glass-card glass-card-interactive flex flex-col justify-between gap-6 rounded-2xl p-6 sm:p-8">
-          <div className="space-y-2.5">
-            <p className="text-xs font-semibold tracking-wide text-slate-400">
-              {language} Tagline
-            </p>
-            <p
-              dir={isRtl ? "rtl" : "ltr"}
-              className="text-2xl sm:text-[1.85rem] font-bold leading-snug text-[#F5B041]"
-            >
-              {taglineRegional}
-            </p>
-          </div>
-          <div className="flex items-center justify-between border-t border-white/10 pt-4">
-            <span className="text-xs font-medium text-[#F28C38]">
-              {language === "English" ? "Global adaptation" : "Regional adaptation"}
-            </span>
-            <CopyButton
-              textToCopy={taglineRegional}
-              label={`Copy ${language}`}
-            />
-          </div>
-        </div>
+        <Reveal delay={0.12}>
+          <SpotlightCard className="flex h-full flex-col justify-between gap-10 rounded-3xl p-7 sm:p-10">
+            <div className="space-y-5">
+              <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                <Languages className="h-4 w-4 text-[#F28C38]" aria-hidden="true" /> {language}
+              </p>
+              <SplitText
+                key={taglineRegional}
+                as="p"
+                dir={isRtl ? "rtl" : "ltr"}
+                text={taglineRegional}
+                stagger={0.09}
+                delay={0.2}
+                className="block text-3xl font-bold leading-[1.35] text-[#F5B041] drop-shadow-[0_0_28px_rgba(245,176,65,0.35)] sm:text-[2.6rem]"
+              />
+            </div>
+            <div className="flex items-center justify-between border-t border-white/10 pt-5">
+              <span className="text-xs font-medium text-[#F28C38]">
+                {language === "English" ? "Global adaptation" : "Regional adaptation"}
+              </span>
+              <CopyButton textToCopy={taglineRegional} label={`Copy ${language}`} />
+            </div>
+          </SpotlightCard>
+        </Reveal>
       </div>
-    </motion.section>
+    </section>
   );
 }
