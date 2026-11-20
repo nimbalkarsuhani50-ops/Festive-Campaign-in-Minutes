@@ -1,4 +1,6 @@
 import { Globe, Loader2, MapPin, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { Magnetic, Reveal, SectionHeading } from "../fx/primitives";
 import {
   FESTIVALS,
   INDIA_FESTIVALS,
@@ -62,24 +64,16 @@ export function CampaignForm({
   );
 
   return (
-    <section id="brief" aria-label="Campaign Brief" className="space-y-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-300">
-            <span className="text-[#F28C38] tabular-nums">01</span>
-            <span aria-hidden="true">·</span>
-            <span>Global Campaign Brief</span>
-          </div>
-          <h1 className="mt-1 font-display text-3xl sm:text-4xl font-bold tracking-tight text-white">
-            Craft Your Festive Campaign
-          </h1>
-        </div>
-        <p className="text-sm text-slate-300">
-          Dr. D. Y. Patil B-School, Pune <span aria-hidden="true">·</span> #DYPAICoE Launch
-        </p>
-      </div>
+    <section id="brief" aria-label="Campaign Brief" className="scroll-section space-y-7">
+      <SectionHeading
+        index="01"
+        kicker="Global campaign brief"
+        title="Craft Your Festive Campaign"
+        right={<p className="text-sm text-slate-400">Fill four fields. Get a whole campaign.</p>}
+      />
 
-      <div className="glass-card rounded-2xl p-5 sm:p-8">
+      <Reveal>
+      <div className="glass-card rounded-3xl p-5 sm:p-8">
         {/* Saved Stage Campaigns quick-load bar */}
         <div className="mb-7 flex flex-col gap-3 border-b border-white/10 pb-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-0.5">
@@ -135,12 +129,17 @@ export function CampaignForm({
                         role="radio"
                         aria-checked={isSelected}
                         onClick={() => onChangeMarket(mkt)}
-                        className={`inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                          isSelected
-                            ? "bg-gradient-to-r from-[#F28C38] to-[#F5A623] text-[#090E1A] shadow-[0_4px_16px_rgba(242,140,56,0.38)]"
-                            : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
+                        className={`relative isolate inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors duration-300 whitespace-nowrap cursor-pointer ${
+                          isSelected ? "text-[#090E1A]" : "text-slate-300 hover:text-white"
                         }`}
                       >
+                        {isSelected && (
+                          <motion.span
+                            layoutId="market-pill"
+                            className="absolute inset-0 -z-10 rounded-lg bg-gradient-to-r from-[#F28C38] to-[#F5A623] shadow-[0_4px_16px_rgba(242,140,56,0.38)]"
+                            transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                          />
+                        )}
                         {mkt === "India" ? (
                           <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
                         ) : (
@@ -393,12 +392,19 @@ export function CampaignForm({
                       role="radio"
                       aria-checked={isSelected}
                       onClick={() => onChangeInput("stylePreset", preset.id)}
-                      className={`group flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F28C38] cursor-pointer ${
+                      className={`group relative isolate flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition-all duration-300 hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F28C38] cursor-pointer ${
                         isSelected
                           ? "border-[#F28C38] bg-[#F28C38]/14 shadow-[0_0_24px_rgba(242,140,56,0.22)]"
                           : "border-white/12 bg-white/[0.03] hover:border-[#D4AF37]/45 hover:bg-white/[0.07]"
                       }`}
                     >
+                      {isSelected && (
+                        <motion.span
+                          layoutId="style-glow"
+                          className="absolute inset-0 -z-10 rounded-xl bg-[radial-gradient(120%_120%_at_0%_0%,rgba(242,140,56,0.28),transparent_60%)]"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
                       <div className="flex w-full items-center justify-between gap-2">
                         <span className="text-sm font-semibold text-white whitespace-nowrap">
                           {preset.id}
@@ -407,7 +413,7 @@ export function CampaignForm({
                           {preset.swatches.map((hex) => (
                             <span
                               key={hex}
-                              className="h-2.5 w-2.5 rounded-full border border-white/25"
+                              className="h-2.5 w-2.5 rounded-full border border-white/25 transition-transform duration-300 group-hover:scale-125"
                               style={{ backgroundColor: hex }}
                             />
                           ))}
@@ -422,11 +428,11 @@ export function CampaignForm({
               </div>
             </div>
 
-            <div className="lg:w-64 shrink-0">
+            <Magnetic className="lg:w-64 shrink-0" strength={0.18}>
               <button
                 type="submit"
                 disabled={isGenerating}
-                className="inline-flex w-full min-h-[52px] items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#F28C38] to-[#F5A623] px-6 py-3.5 text-base font-bold text-[#090E1A] shadow-[0_8px_28px_-4px_rgba(242,140,56,0.5)] transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_12px_34px_-4px_rgba(242,140,56,0.72)] active:scale-[0.98] disabled:opacity-75 disabled:hover:scale-100 disabled:cursor-wait focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white whitespace-nowrap shrink-0 cursor-pointer"
+                className="btn-primary group inline-flex w-full min-h-[60px] items-center justify-center gap-2.5 rounded-2xl px-6 py-3.5 text-lg font-bold text-[#090E1A] disabled:opacity-75 disabled:cursor-wait focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white whitespace-nowrap shrink-0 cursor-pointer"
               >
                 {isGenerating ? (
                   <>
@@ -437,24 +443,31 @@ export function CampaignForm({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-5 w-5" aria-hidden="true" />
+                    <Sparkles className="h-5 w-5 transition-transform duration-500 group-hover:rotate-180 group-hover:scale-110" aria-hidden="true" />
                     <span>Generate campaign</span>
                   </>
                 )}
               </button>
-            </div>
+            </Magnetic>
           </div>
 
-          {validationError && (
-            <p
-              role="alert"
-              className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200"
-            >
-              {validationError}
-            </p>
-          )}
+          <AnimatePresence>
+            {validationError && (
+              <motion.p
+                role="alert"
+                initial={{ opacity: 0, y: -8, x: 0 }}
+                animate={{ opacity: 1, y: 0, x: [0, -10, 10, -6, 6, 0] }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.5 }}
+                className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200"
+              >
+                {validationError}
+              </motion.p>
+            )}
+          </AnimatePresence>
         </form>
       </div>
+      </Reveal>
     </section>
   );
 }

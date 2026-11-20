@@ -1,6 +1,8 @@
 import { Download, Loader2, RefreshCw } from "lucide-react";
-import { motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useInView } from "motion/react";
+import { sparkleFrom } from "../fx/celebrate";
+import { Magnetic, Reveal, SectionHeading } from "../fx/primitives";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   POSTER_ASPECT_RATIOS,
   getAspectRatioSpec,
@@ -45,6 +47,10 @@ export function PosterSection({
 }: PosterSectionProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [tilt, setTilt] = useState<{ rx: number; ry: number }>({ rx: 0, ry: 0 });
+  const [glare, setGlare] = useState<{ x: number; y: number; on: boolean }>({ x: 50, y: 50, on: false });
+  const downloadRef = useRef<HTMLButtonElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const stageInView = useInView(stageRef, { once: true, amount: 0.35 });
   const [posterCopyLang, setPosterCopyLang] = useState<"regional" | "english">(
     language !== "English" ? "regional" : "english"
   );
@@ -89,6 +95,7 @@ export function PosterSection({
         aspectRatio,
         isRtl,
       });
+      sparkleFrom(downloadRef.current, 40);
     } finally {
       setIsDownloading(false);
     }
@@ -99,31 +106,26 @@ export function PosterSection({
     const px = (e.clientX - rect.left) / rect.width - 0.5;
     const py = (e.clientY - rect.top) / rect.height - 0.5;
     setTilt({
-      rx: Number((-py * 8).toFixed(2)),
-      ry: Number((px * 8).toFixed(2)),
+      rx: Number((-py * 14).toFixed(2)),
+      ry: Number((px * 14).toFixed(2)),
     });
+    setGlare({ x: (px + 0.5) * 100, y: (py + 0.5) * 100, on: true });
   }
 
   function handlePointerLeave() {
     setTilt({ rx: 0, ry: 0 });
+    setGlare((g) => ({ ...g, on: false }));
   }
 
-  return (
-    <motion.section
-      id="poster-section"
-      aria-label="Campaign Poster"
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="space-y-4"
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-300">
-          <span className="text-[#F28C38] tabular-nums">07</span>
-          <span aria-hidden="true">·</span>
-          <h2 className="text-base font-bold text-white">Campaign Poster</h2>
-        </div>
+  const curtainKey = `${revealKey}-${posterSeed}-${stylePreset}-${festival}-${aspectRatio}`;
 
+  return (
+    <section id="poster-section" aria-label="Campaign Poster" className="scroll-section space-y-7">
+      <SectionHeading
+        index="07"
+        kicker="Print & social ready"
+        title="The Poster"
+        right={
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
@@ -134,7 +136,9 @@ export function PosterSection({
             <span>New variation</span>
           </button>
 
+          <Magnetic strength={0.2}>
           <button
+            ref={downloadRef}
             type="button"
             disabled={isDownloading}
             onClick={handleDownload}
@@ -152,26 +156,32 @@ export function PosterSection({
               </>
             )}
           </button>
+          </Magnetic>
         </div>
-      </div>
+        }
+      />
 
-      <div className="glass-card rounded-2xl p-5 sm:p-8 lg:p-10">
+      <Reveal>
+      <div className="glass-card relative overflow-hidden rounded-3xl p-5 sm:p-8 lg:p-12">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[8%] top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(242,140,56,0.25)_0%,rgba(212,175,55,0.08)_45%,transparent_70%)] blur-2xl lg:left-[12%]"
+        />
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-center">
           {/* 3D Perspective Reveal Poster Showcase */}
           <div
-            className="lg:col-span-7 flex justify-center"
+            ref={stageRef}
+            className="relative lg:col-span-7 flex justify-center"
             style={{ perspective: "1200px" }}
           >
             <motion.div
-              key={`${revealKey}-${posterSeed}-${stylePreset}-${festival}-${aspectRatio}`}
-              initial={{ opacity: 0, scale: 0.9, rotateX: 11, rotateY: -12, y: 26 }}
-              animate={{
-                opacity: 1,
-                scale: 1,
-                rotateX: tilt.rx,
-                rotateY: tilt.ry,
-                y: 0,
-              }}
+              key={curtainKey}
+              initial={{ opacity: 0, scale: 0.86, rotateX: 16, rotateY: -18, y: 40 }}
+              animate={
+                stageInView
+                  ? { opacity: 1, scale: 1, rotateX: tilt.rx, rotateY: tilt.ry, y: 0 }
+                  : undefined
+              }
               transition={{
                 opacity: { duration: 0.45 },
                 scale: { type: "spring", stiffness: 180, damping: 20 },
@@ -226,10 +236,48 @@ export function PosterSection({
               </div>
 
               {/* Metallic shine sweep on reveal */}
-              <div
+              {stageInView && <div
                 aria-hidden="true"
                 className="poster-shine-sweep pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+              />}
+
+              {/* Holographic glare that follows the cursor */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 mix-blend-overlay transition-opacity duration-300"
+                style={{
+                  opacity: glare.on ? 1 : 0,
+                  background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,0.55), rgba(255,231,163,0.18) 25%, transparent 55%)`,
+                }}
               />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 mix-blend-color-dodge transition-opacity duration-300"
+                style={{
+                  opacity: glare.on ? 0.22 : 0,
+                  background: `linear-gradient(${115 + (glare.x - 50) * 0.8}deg, transparent 20%, rgba(255,126,182,0.6) 38%, rgba(245,176,65,0.6) 50%, rgba(120,200,255,0.5) 62%, transparent 80%)`,
+                }}
+              />
+
+              {/* Curtain reveal: two gold panels part to unveil the poster */}
+              <AnimatePresence>
+                <motion.div
+                  key={`l-${curtainKey}`}
+                  aria-hidden="true"
+                  initial={{ x: "0%" }}
+                  animate={stageInView ? { x: "-101%" } : undefined}
+                  transition={{ duration: 1.1, delay: 0.25, ease: [0.76, 0, 0.24, 1] }}
+                  className="curtain pointer-events-none absolute inset-y-0 left-0 w-1/2"
+                />
+                <motion.div
+                  key={`r-${curtainKey}`}
+                  aria-hidden="true"
+                  initial={{ x: "0%" }}
+                  animate={stageInView ? { x: "101%" } : undefined}
+                  transition={{ duration: 1.1, delay: 0.25, ease: [0.76, 0, 0.24, 1] }}
+                  className="curtain curtain-right pointer-events-none absolute inset-y-0 right-0 w-1/2"
+                />
+              </AnimatePresence>
             </motion.div>
           </div>
 
@@ -338,6 +386,7 @@ export function PosterSection({
           </div>
         </div>
       </div>
-    </motion.section>
+      </Reveal>
+    </section>
   );
 }

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 const SYSTEM_INSTRUCTION =
   "You are a festive marketing strategist for Indian and global brands. Input: market, region, festival, brand, city, audience, budget with local currency, preferred language, and optional style preset. Return ONLY valid JSON: big_idea (max 20 words), tagline_en (crisp English tagline), tagline_regional (natural, idiomatic festive tagline written in the requested language and its native script, e.g. Devanagari, Tamil, Telugu, Bengali, Kannada, Malayalam, Gujarati, Gurmukhi, Arabic, Simplified Chinese, Japanese, Spanish, French, German, Portuguese, etc.; if English is requested, provide an alternative punchy English tagline), instagram_posts (list of 3: caption, hashtags), reel_script (hook_0_3s, scene_3_10s, cta_10_15s), channel_plan (list of 4-5 items: channel, percent_of_budget summing to 100, why), poster_prompt (a rich visual poster image description with NO text in it). Respect the festival's cultural meaning, no religious mockery, no stereotypes, and match the selected market's local currency and cultural context. Every caption under 30 words.";
