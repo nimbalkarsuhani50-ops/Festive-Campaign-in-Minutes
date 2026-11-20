@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    font-family: "Plus Jakarta Sans", "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Bengali", "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans Gujarati", "Noto Sans Gurmukhi", "Noto Sans Oriya", "Noto Sans Arabic", "Noto Sans SC", "Noto Sans JP", system-ui, -apple-system, sans-serif;
+    background-color: #080D1A;
+    color: #F8FAFC;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: #080D1A;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 15% -10%, rgba(242, 140, 56, 0.16), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 85% 0%, rgba(212, 175, 55, 0.12), transparent 55%),
+      radial-gradient(ellipse 90% 60% at 50% 100%, rgba(45, 27, 78, 0.45), transparent 70%),
+      linear-gradient(180deg, #080D1A 0%, #0E162B 45%, #131126 100%);
+    background-attachment: fixed;
+    color: #F8FAFC;
+    min-height: 100vh;
+  }
+}
+
+.font-display {
+  font-family: "Playfair Display", "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Bengali", "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans Gujarati", "Noto Sans Gurmukhi", "Noto Sans Oriya", "Noto Sans Arabic", "Noto Sans SC", "Noto Sans JP", Georgia, serif;
+}
+
+/* Glassmorphism surface helper */
+.glass-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.025) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  box-shadow:
+    0 12px 36px -12px rgba(4, 8, 20, 0.65),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-interactive {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212, 175, 55, 0.36);
+  box-shadow:
+    0 18px 42px -12px rgba(4, 8, 20, 0.8),
+    0 0 28px -10px rgba(242, 140, 56, 0.18),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Custom gold & orange glowing slider */
+input[type="range"].stage-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"].stage-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #F28C38 0%, #F5B041 100%);
+  border: 2px solid #FFF7ED;
+  box-shadow: 0 0 14px rgba(242, 140, 56, 0.55);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+}
+
+input[type="range"].stage-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.14);
+  box-shadow: 0 0 20px rgba(242, 140, 56, 0.8);
+}
+
+input[type="range"].stage-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #F28C38 0%, #F5B041 100%);
+  border: 2px solid #FFF7ED;
+  box-shadow: 0 0 14px rgba(242, 140, 56, 0.55);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+}
+
+/* Poster reveal diagonal shine sweep */
+@keyframes posterShine {
+  0% {
+    transform: translateX(-140%) skewX(-20deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.75;
+  }
+  80% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateX(240%) skewX(-20deg);
+    opacity: 0;
+  }
+}
+
+.poster-shine-sweep {
+  animation: posterShine 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.18s 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .glass-card-interactive:hover {
+    transform: none;
+  }
+  .poster-shine-sweep {
+    animation: none;
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Festive Campaign Board",
+  "description": "Indian-festival marketing campaign presentation board for the #DYPAICoE launch at Dr. D. Y. Patil B-School, Pune.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
