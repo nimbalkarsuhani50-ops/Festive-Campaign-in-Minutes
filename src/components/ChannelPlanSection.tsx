@@ -12,7 +12,7 @@ interface ChannelPlanSectionProps {
   chartRef: RefObject<HTMLDivElement | null>;
 }
 
-const BAR_COLORS = ["#F28C38", "#F5B041", "#D4AF37", "#FF7EB6", "#E8A87C", "#C9A227"];
+const BAR_COLORS = ["var(--ac)", "var(--ac3)", "var(--ac2)", "var(--ac5)", "var(--ac3)", "var(--ac2)"];
 
 export function ChannelPlanSection({ channelPlan, budget, market = "India", region, chartRef }: ChannelPlanSectionProps) {
   const regionCfg = getRegionConfig(market, region);
@@ -52,21 +52,21 @@ export function ChannelPlanSection({ channelPlan, budget, market = "India", regi
       margin: { t: 36, r: 24, b: 78, l: 92 },
       xaxis: {
         tickfont: { color: "#F8FAFC", size: 12 },
-        gridcolor: "rgba(212, 175, 55, 0.1)",
-        linecolor: "rgba(212, 175, 55, 0.35)",
+        gridcolor: "rgba(var(--ac2-rgb), 0.1)",
+        linecolor: "rgba(var(--ac2-rgb), 0.35)",
       },
       yaxis: {
         title: { text: `Budget Allocation (${regionCfg.currencyCode})`, font: { color: "#CBD5E1", size: 12 } },
         tickprefix: regionCfg.currencySymbol,
         tickformat: ",.0f",
         tickfont: { color: "#CBD5E1", size: 12 },
-        gridcolor: "rgba(212, 175, 55, 0.12)",
-        zerolinecolor: "rgba(212, 175, 55, 0.3)",
+        gridcolor: "rgba(var(--ac2-rgb), 0.12)",
+        zerolinecolor: "rgba(var(--ac2-rgb), 0.3)",
         range: [0, maxAmount * 1.22],
       },
       bargap: 0.38,
       transition: animate ? { duration: 1100, easing: "elastic-out" } : { duration: 0 },
-      hoverlabel: { bgcolor: "#0B1224", bordercolor: "#F28C38", font: { color: "#fff" } },
+      hoverlabel: { bgcolor: "#0B1224", bordercolor: "var(--ac)", font: { color: "#fff" } },
     });
 
     const config = { responsive: true, displayModeBar: false };
@@ -94,13 +94,13 @@ export function ChannelPlanSection({ channelPlan, budget, market = "India", regi
   return (
     <section id="channel-plan" aria-label="Channel Plan" className="scroll-section space-y-7">
       <SectionHeading
-        index="06"
+        index="07"
         kicker="Where the money goes"
         title="Channel Plan"
         right={
           <div className="text-right">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Total budget</p>
-            <p className="font-display text-3xl font-bold text-[#F5B041] tabular-nums sm:text-4xl">
+            <p className="font-display text-3xl font-bold text-[color:var(--ac3)] tabular-nums sm:text-4xl">
               <CountUp value={budget} format={(n) => formatBudget(Math.round(n), market, region)} duration={2} />
             </p>
           </div>

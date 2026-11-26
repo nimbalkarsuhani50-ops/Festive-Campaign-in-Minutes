@@ -8,11 +8,11 @@ const SECTIONS = [
   { id: "top", label: "Intro" },
   { id: "brief", label: "Brief" },
   { id: "big-idea", label: "Big Idea" },
-  { id: "taglines", label: "Taglines" },
-  { id: "instagram-posts", label: "Instagram" },
+  { id: "poster-section", label: "Posters" },
   { id: "reel-script", label: "Reel" },
-  { id: "channel-plan", label: "Channels" },
-  { id: "poster-section", label: "Poster" },
+  { id: "taglines", label: "Taglines" },
+  { id: "instagram-posts", label: "Carousel" },
+  { id: "channel-plan", label: "Budget" },
   { id: "export-section", label: "Export" },
 ];
 
@@ -106,7 +106,7 @@ export function PresenterDock() {
               <span
                 className={`text-[11px] font-semibold uppercase tracking-[0.18em] transition-all duration-300 ${
                   on
-                    ? "translate-x-0 text-[#F5B041] opacity-100"
+                    ? "translate-x-0 text-[color:var(--ac3)] opacity-100"
                     : "translate-x-2 text-slate-400 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
                 }`}
               >
@@ -116,7 +116,7 @@ export function PresenterDock() {
                 {on && (
                   <motion.span
                     layoutId="dock-dot"
-                    className="absolute h-3 w-3 rounded-full bg-[#F28C38] shadow-[0_0_14px_rgba(242,140,56,0.9)]"
+                    className="absolute h-3 w-3 rounded-full bg-[var(--ac)] shadow-[0_0_14px_rgba(var(--ac-rgb),0.9)]"
                     transition={{ type: "spring", stiffness: 420, damping: 30 }}
                   />
                 )}

@@ -40,10 +40,10 @@ export function CopyButton({ textToCopy, label = "Copy" }: CopyButtonProps) {
       type="button"
       onClick={handleCopy}
       whileTap={{ scale: 0.92 }}
-      className={`relative inline-flex items-center gap-2 overflow-hidden rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F28C38] whitespace-nowrap shrink-0 cursor-pointer ${
+      className={`relative inline-flex items-center gap-2 overflow-hidden rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ac)] whitespace-nowrap shrink-0 cursor-pointer ${
         copied
-          ? "border-[#F28C38] bg-[#F28C38]/15 text-[#F5B041] shadow-[0_0_20px_rgba(242,140,56,0.35)]"
-          : "border-white/15 bg-white/[0.04] text-slate-200 hover:border-[#D4AF37]/60 hover:bg-white/[0.09] hover:text-white"
+          ? "border-[color:var(--ac)] bg-[var(--ac)]/15 text-[color:var(--ac3)] shadow-[0_0_20px_rgba(var(--ac-rgb),0.35)]"
+          : "border-white/15 bg-white/[0.04] text-slate-200 hover:border-[color:var(--ac2)]/60 hover:bg-white/[0.09] hover:text-white"
       }`}
       aria-label={copied ? "Copied to clipboard" : label}
     >
@@ -62,7 +62,7 @@ export function CopyButton({ textToCopy, label = "Copy" }: CopyButtonProps) {
             </>
           ) : (
             <>
-              <Copy className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" /> {label}
+              <Copy className="h-4 w-4 text-[color:var(--ac2)]" aria-hidden="true" /> {label}
             </>
           )}
         </motion.span>

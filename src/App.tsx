@@ -18,7 +18,9 @@ import {
 import { Header } from "./components/Header";
 import { InstagramPostsSection } from "./components/InstagramPostsSection";
 import { PosterSection } from "./components/PosterSection";
-import { ReelScriptSection } from "./components/ReelScriptSection";
+import { ReelStudioSection } from "./components/ReelStudioSection";
+import { downloadCampaignKit } from "./utils/kitExport";
+import type { ReelResult } from "./utils/reelRenderer";
 import { RegenerateSection } from "./components/RegenerateSection";
 import { TaglinesSection } from "./components/TaglinesSection";
 import {
@@ -34,6 +36,9 @@ import type {
   PosterAspectRatio,
   SavedCampaignKey,
 } from "./types";
+import { HistorySection } from "./components/HistorySection";
+import { fetchHistoryEntry, saveHistory } from "./utils/history";
+import { applyFestivalTheme } from "./data/festivalThemes";
 import { exportBoardAsPdf } from "./utils/pdfExport";
 
 const INITIAL_INPUT: CampaignInput = {
@@ -74,9 +79,168 @@ export default function App() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const chartRef = useRef<HTMLDivElement | null>(null);
+
+  // Central history: id of the saved entry for the board on screen + list refresh trigger
+  const [historyId, setHistoryId] = useState<string | null>(null);
+  const [historyTick, setHistoryTick] = useState(0);
+  const latestRef = useRef<{ boardInput: CampaignInput; campaign: CampaignData | null; posterSeed: number; aspectRatio: PosterAspectRatio; historyId: string | null }>(
+    { boardInput, campaign, posterSeed, aspectRatio, historyId }
+  );
+  latestRef.current = { boardInput, campaign, posterSeed, aspectRatio, historyId };
+  const persistTimer = useRef<number | null>(null);
+
+  /** Debounced save of whatever is on the board; safe to call after any state change. */
+  function schedulePersist(delay = 1200) {
+    if (persistTimer.current !== null) window.clearTimeout(persistTimer.current);
+    persistTimer.current = window.setTimeout(async () => {
+      const cur = latestRef.current;
+      if (!cur.campaign) return;
+      const saved = await saveHistory({
+        id: cur.historyId,
+        input: cur.boardInput,
+        campaign: cur.campaign,
+        posterSeed: cur.posterSeed,
+        aspectRatio: cur.aspectRatio,
+      });
+      if (saved) {
+        setHistoryId(saved.id);
+        setHistoryTick((t) => t + 1);
+      }
+    }, delay);
+  }
+
+  // ---- AI poster artwork: request missing images for the visible format + feed ----
+  const [artPending, setArtPending] = useState<Record<string, boolean>>({});
+  const [artError, setArtError] = useState<string | null>(null);
+  const artRequested = useRef(new Set<string>());
+
+  useEffect(() => {
+    const posters = campaign?.posters;
+    if (!posters) return;
+    const formats = Array.from(new Set<PosterAspectRatio>(["instagram_feed", "instagram_story", aspectRatio]));
+    posters.forEach((p, i) => {
+      if (!p.token) return;
+      formats.forEach((fmt) => {
+        const variant = p.variant ?? 0;
+        const reqKey = `${p.token}|${fmt}|${variant}`;
+        if (p.images?.[fmt] || artRequested.current.has(reqKey)) return;
+        artRequested.current.add(reqKey);
+        const slot = `${i}|${fmt}`;
+        setArtPending((s) => ({ ...s, [slot]: true }));
+        fetch("/api/poster-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: p.visual_prompt, token: p.token, aspect: fmt, variant }),
+        })
+          .then(async (r) => {
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || !j.id) throw new Error(j.error || `HTTP ${r.status}`);
+            setCampaign((prev) =>
+              prev?.posters
+                ? {
+                    ...prev,
+                    posters: prev.posters.map((pp) =>
+                      pp.token === p.token && (pp.variant ?? 0) === variant
+                        ? { ...pp, images: { ...pp.images, [fmt]: j.id } }
+                        : pp
+                    ),
+                  }
+                : prev
+            );
+            schedulePersist();
+          })
+          .catch((e) => {
+            artRequested.current.delete(reqKey);
+            setArtError(String(e instanceof Error ? e.message : e).slice(0, 160));
+          })
+          .finally(() =>
+            setArtPending((s) => {
+              const n = { ...s };
+              delete n[slot];
+              return n;
+            })
+          );
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign?.posters, aspectRatio]);
+
+  const reelRef = useRef<ReelResult | null>(null);
+  const [kitStatus, setKitStatus] = useState<string | null>(null);
+  const posterFeedImages = useMemo(
+    () => [0, 1, 2].map((i) => {
+      const id = campaign?.posters?.[i]?.images?.instagram_feed;
+      return id ? `/api/poster-image?id=${id}` : undefined;
+    }),
+    [campaign?.posters]
+  );
+  // Reel uses the vertical (9:16) artwork, falling back to feed art.
+  const posterReelImages = useMemo(
+    () => [0, 1, 2].map((i) => {
+      const imgs = campaign?.posters?.[i]?.images;
+      const id = imgs?.instagram_story ?? imgs?.instagram_feed;
+      return id ? `/api/poster-image?id=${id}` : undefined;
+    }),
+    [campaign?.posters]
+  );
+  // Reel waits until every poster's feed + vertical artwork has arrived or failed.
+  const artSettled = useMemo(() => {
+    const ps = campaign?.posters ?? [];
+    if (!ps.some((p) => p.token)) return true;
+    if (artError) return true;
+    const pending = Object.keys(artPending).some((k) => artPending[k] && /\|instagram_(feed|story)$/.test(k));
+    return !pending && ps.every((p) => !p.token || (p.images?.instagram_feed && p.images?.instagram_story));
+  }, [campaign?.posters, artPending, artError]);
+
+  async function handleDownloadKit() {
+    if (!campaign || kitStatus) return;
+    try {
+      await downloadCampaignKit({
+        input: boardInput,
+        campaign,
+        posterSeed,
+        slideImages,
+        reel: reelRef.current,
+        onProgress: setKitStatus,
+      });
+    } catch (err) {
+      setApiError(`Could not build the campaign kit (${err instanceof Error ? err.message : "error"}).`);
+    } finally {
+      setKitStatus(null);
+    }
+  }
+
+  // Carousel slides reuse the poster artwork that matches each slide's angle.
+  const slideImages = useMemo(() => {
+    const ids = (campaign?.posters ?? []).map((p) => p.images?.instagram_feed);
+    const order = [0, 1, 2, 1, 0];
+    return order.map((i) => (ids[i] ? `/api/poster-image?id=${ids[i]}` : undefined));
+  }, [campaign?.posters]);
+
+  async function handleLoadHistory(id: string) {
+    try {
+      const e = await fetchHistoryEntry(id);
+      setSelectedPreset("");
+      setInput(e.input);
+      setBoardInput(e.input);
+      setCampaign(e.campaign);
+      setPosterSeed(e.posterSeed || 7);
+      setAspectRatio(e.aspectRatio || "instagram_feed");
+      setHistoryId(e.id);
+      setPosterRevealKey((k) => k + 1);
+      setBoardKey((k) => k + 1);
+      setApiError(null);
+      revealBoard(250);
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : "Could not load that campaign.");
+    }
+  }
   const journeyIntervalRef = useRef<number | null>(null);
   const exportBtnRef = useRef<HTMLButtonElement | null>(null);
   const [boardKey, setBoardKey] = useState(0);
+
+  // Whole-site theme follows the festival chosen in the form.
+  useEffect(() => applyFestivalTheme(input.festival), [input.festival]);
 
   useEffect(() => initSmoothScroll(), []);
   useEffect(() => {
@@ -193,6 +357,7 @@ export default function App() {
     const stylePreset = input.stylePreset ?? "Festive Gold";
     const nextInput = { ...preset.input, stylePreset };
     setSelectedPreset(key);
+    setHistoryId(null);
     setInput(nextInput);
     setBoardInput(nextInput);
     setCampaign({
@@ -287,6 +452,10 @@ export default function App() {
       setBoardKey((k) => k + 1);
       setJourneyOpen(false);
       revealBoard(700);
+      setHistoryId(null);
+      setArtError(null);
+      latestRef.current.historyId = null;
+      schedulePersist(1500);
     } catch (err) {
       if (journeyIntervalRef.current !== null) {
         window.clearInterval(journeyIntervalRef.current);
@@ -295,7 +464,7 @@ export default function App() {
       setJourneyOpen(false);
       const msg = err instanceof Error ? err.message : "Request failed.";
       setApiError(
-        `Could not reach Claude right now (${msg}). You can load one of the saved stage campaigns below as an instant backup.`
+        `Could not reach Gemini right now (${msg}). You can load one of the saved stage campaigns below as an instant backup.`
       );
     } finally {
       setIsGenerating(false);
@@ -340,6 +509,7 @@ export default function App() {
       );
       setPosterSeed((s) => s + 1);
       setPosterRevealKey((k) => k + 1);
+      schedulePersist();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Request failed.";
       setApiError(
@@ -353,6 +523,27 @@ export default function App() {
   function handleRegeneratePosterVariation() {
     setPosterSeed((s) => s + 1);
     setPosterRevealKey((k) => k + 1);
+    schedulePersist();
+  }
+
+  /** Fresh AI artwork for one poster (or a new vector variation for demo campaigns). */
+  function handleNewArtwork(index: number) {
+    const p = campaign?.posters?.[index];
+    if (!p?.token) {
+      handleRegeneratePosterVariation();
+      return;
+    }
+    setArtError(null);
+    setCampaign((prev) =>
+      prev?.posters
+        ? {
+            ...prev,
+            posters: prev.posters.map((pp, i) =>
+              i === index ? { ...pp, variant: ((pp.variant ?? 0) + 1) % 10, images: {} } : pp
+            ),
+          }
+        : prev
+    );
   }
 
   async function handleExportPdf() {
@@ -376,7 +567,7 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <AmbientCanvas />
+    <AmbientCanvas festival={journeyOpen ? input.festival : campaign ? boardInput.festival : input.festival} />
     <div className="relative z-10 min-h-screen overflow-x-clip text-slate-100">
       <Header
         hasCampaign={Boolean(campaign)}
@@ -398,6 +589,7 @@ export default function App() {
       <Hero
         onStart={() => scrollToId("brief", { duration: 1.5 })}
         onDemo={() => handleLoadSaved("Diwali - Sweet Shop")}
+        festival={input.festival}
       />
 
       <PresenterDock />
@@ -421,11 +613,11 @@ export default function App() {
             role="alert"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card flex flex-col gap-4 rounded-2xl border-[#F28C38]/55 p-6 sm:flex-row sm:items-center sm:justify-between"
+            className="glass-card flex flex-col gap-4 rounded-2xl border-[color:var(--ac)]/55 p-6 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex items-start gap-3">
               <AlertCircle
-                className="mt-0.5 h-5 w-5 shrink-0 text-[#F28C38]"
+                className="mt-0.5 h-5 w-5 shrink-0 text-[color:var(--ac)]"
                 aria-hidden="true"
               />
               <div className="space-y-1">
@@ -442,7 +634,7 @@ export default function App() {
                   key={presetKey}
                   type="button"
                   onClick={() => handleLoadSaved(presetKey)}
-                  className="rounded-lg border border-white/15 bg-white/[0.05] px-3.5 py-2 text-xs font-semibold text-white transition-all duration-200 hover:scale-[1.02] hover:border-[#F28C38] hover:text-[#F28C38] whitespace-nowrap shrink-0 cursor-pointer"
+                  className="rounded-lg border border-white/15 bg-white/[0.05] px-3.5 py-2 text-xs font-semibold text-white transition-all duration-200 hover:scale-[1.02] hover:border-[color:var(--ac)] hover:text-[color:var(--ac)] whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   Load {presetKey}
                 </button>
@@ -463,6 +655,26 @@ export default function App() {
               bigIdea={campaign.big_idea}
             />
 
+            <PosterSection
+              input={boardInput}
+              campaign={campaign}
+              aspectRatio={aspectRatio}
+              posterSeed={posterSeed}
+              revealKey={posterRevealKey}
+              artPending={artPending}
+              artError={artError}
+              onChangeAspectRatio={(r) => { setAspectRatio(r); schedulePersist(); }}
+              onNewArtwork={handleNewArtwork}
+            />
+
+            <ReelStudioSection
+              input={boardInput}
+              campaign={campaign}
+              posterImages={posterReelImages}
+              artSettled={artSettled}
+              onReel={(r) => (reelRef.current = r)}
+            />
+
             <TaglinesSection
               taglineEn={campaign.tagline_en}
               taglineRegional={campaign.tagline_regional}
@@ -475,14 +687,8 @@ export default function App() {
               festival={boardInput.festival}
               stylePreset={boardInput.stylePreset ?? "Festive Gold"}
               seed={posterSeed}
-            />
-
-            <ReelScriptSection
-              reelScript={campaign.reel_script}
-              brand={boardInput.brand}
-              festival={boardInput.festival}
-              stylePreset={boardInput.stylePreset ?? "Festive Gold"}
-              seed={posterSeed}
+              slideImages={slideImages}
+              palette={campaign.palette}
             />
 
             <ChannelPlanSection
@@ -499,29 +705,44 @@ export default function App() {
               onRegenerate={handleRegenerate}
             />
 
-            <PosterSection
-              festival={boardInput.festival}
-              brand={boardInput.brand}
-              taglineEn={campaign.tagline_en}
-              taglineRegional={campaign.tagline_regional}
-              language={boardInput.language}
-              posterPrompt={campaign.poster_prompt}
-              stylePreset={boardInput.stylePreset ?? "Festive Gold"}
-              aspectRatio={aspectRatio}
-              posterSeed={posterSeed}
-              revealKey={posterRevealKey}
-              onChangeAspectRatio={setAspectRatio}
-              onRegenerateVariation={handleRegeneratePosterVariation}
-            />
-
             <section id="export-section" aria-label="Export Board" className="scroll-section space-y-7">
-              <SectionHeading index="08" kicker="Take it with you" title="Export the Board" />
+              <SectionHeading index="08" kicker="Take it with you" title="Save Everything" />
+              <Reveal>
+                <SpotlightCard className="mb-6 flex flex-col items-start justify-between gap-6 rounded-3xl p-7 sm:flex-row sm:items-center sm:px-10 sm:py-9">
+                  <div className="space-y-1.5">
+                    <h3 className="font-display text-2xl font-bold text-white">Campaign Kit (.zip)</h3>
+                    <p className="text-sm text-slate-300 sm:text-base">
+                      All 3 posters, 5 carousel slides, the 10-second reel and every caption, hashtag and script, ready to post.
+                    </p>
+                  </div>
+                  <Magnetic strength={0.2}>
+                    <button
+                      type="button"
+                      disabled={kitStatus !== null}
+                      onClick={handleDownloadKit}
+                      className="btn-primary inline-flex min-h-[54px] items-center gap-2.5 rounded-2xl px-7 text-base font-bold text-[#090E1A] disabled:opacity-70 whitespace-nowrap"
+                    >
+                      {kitStatus ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                          <span>{kitStatus}…</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="h-5 w-5" aria-hidden="true" />
+                          <span>Download campaign kit</span>
+                        </>
+                      )}
+                    </button>
+                  </Magnetic>
+                </SpotlightCard>
+              </Reveal>
               <Reveal>
                 <SpotlightCard className="flex flex-col items-start justify-between gap-6 rounded-3xl p-7 sm:flex-row sm:items-center sm:px-10 sm:py-9">
                   <div className="space-y-1.5">
-                    <h3 className="font-display text-2xl font-bold text-white">One-Page Stage Presentation PDF</h3>
+                    <h3 className="font-display text-2xl font-bold text-white">Presentation PDF</h3>
                     <p className="text-sm text-slate-300 sm:text-base">
-                      An A4 summary with your Big Idea, taglines, posts, reel script, poster, and budget chart.
+                      A 2-page board for presenting: posters, big idea, taglines, reel script, carousel and budget split.
                     </p>
                   </div>
                   <Magnetic strength={0.2}>
@@ -550,6 +771,8 @@ export default function App() {
             </section>
           </div>
         )}
+
+        <HistorySection refreshKey={historyTick} onLoad={handleLoadHistory} />
       </main>
 
       <footer className="border-t border-white/10 bg-[#070B16]/70 py-8 text-center text-sm text-slate-400 backdrop-blur">
@@ -603,14 +826,14 @@ function PresetShowcase({ onLoad }: { onLoad: (key: SavedCampaignKey) => void })
                   dangerouslySetInnerHTML={{ __html: svg }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F20] via-[#0A0F20]/30 to-transparent" />
-                <span className="absolute left-4 top-4 rounded-full bg-black/50 px-3 py-1 text-xs font-semibold text-[#FFE7A3] backdrop-blur">
+                <span className="absolute left-4 top-4 rounded-full bg-black/50 px-3 py-1 text-xs font-semibold text-[color:var(--ac4)] backdrop-blur">
                   {preset.input.festival}
                 </span>
               </div>
               <div className="space-y-3 p-6">
                 <p className="font-display text-2xl font-bold text-white">{preset.input.brand}</p>
                 <p className="line-clamp-2 text-sm text-slate-300">{preset.campaign.tagline_en}</p>
-                <p className="inline-flex items-center gap-2 pt-1 text-sm font-semibold text-[#F5B041]">
+                <p className="inline-flex items-center gap-2 pt-1 text-sm font-semibold text-[color:var(--ac3)]">
                   Load this campaign
                   <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden="true" />
                 </p>

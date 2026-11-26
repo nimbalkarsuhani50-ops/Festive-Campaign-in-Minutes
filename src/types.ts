@@ -86,11 +86,19 @@ export interface CampaignInput {
   budget: number;
   language: RegionalLanguage;
   stylePreset?: StylePreset;
+  /** What the brand sells, e.g. "sweet shop: kaju katli, gift boxes". */
+  business?: string;
 }
 
 export interface InstagramPost {
   caption: string;
   hashtags: string;
+  /** Carousel angle, e.g. "Hook", "Story", "Offer", "Challenge", "CTA". */
+  angle?: string;
+  /** Big text printed on the slide (max ~6 words). */
+  headline?: string;
+  /** Small supporting line on the slide. */
+  subline?: string;
 }
 
 export interface ReelScript {
@@ -105,6 +113,30 @@ export interface ChannelPlanItem {
   why: string;
 }
 
+export type PosterLayout =
+  | "Bold Headline"
+  | "Ribbon Frame"
+  | "Sticker Pop"
+  | "Magazine Cover"
+  | "Split Panel"
+  | "Editorial";
+
+export interface PosterConcept {
+  concept: string;
+  layout: PosterLayout;
+  visual_prompt: string;
+  headline: string;
+  subline: string;
+  cta: string;
+  badge: string;
+  /** Server signature that allows /api/poster-image to draw this prompt. */
+  token?: string;
+  /** Generated artwork ids per format (filled in by the browser). */
+  images?: Partial<Record<PosterAspectRatio, string>>;
+  /** Bumped by "New artwork" to get a fresh image. */
+  variant?: number;
+}
+
 export interface CampaignData {
   big_idea: string;
   tagline_en: string;
@@ -113,6 +145,29 @@ export interface CampaignData {
   reel_script: ReelScript;
   channel_plan: ChannelPlanItem[];
   poster_prompt: string;
+  /** Short on-poster headline, CTA and badge text. */
+  poster_headline?: string;
+  /** Three ready-to-post poster concepts (AI campaigns). */
+  posters?: PosterConcept[];
+  /** On-screen text for the 10-second reel. */
+  reel_text?: {
+    hook: string;
+    line: string;
+    cta: string;
+    music_mood: string;
+    voiceover?: string;
+    voice?: string;
+    music_prompt?: string;
+    voice_token?: string;
+    music_token?: string;
+    /** Generated audio ids (filled in by the browser). */
+    voice_id?: string;
+    music_id?: string;
+  };
+  /** Brand x festival palette picked by the AI. */
+  palette?: { primary: string; secondary: string; light: string };
+  poster_cta?: string;
+  poster_badge?: string;
 }
 
 export interface SavedCampaignPreset {
@@ -142,59 +197,6 @@ declare global {
       ) => Promise<string>;
       Plots: {
         resize: (root: HTMLElement) => void;
-      };
-    };
-    jspdf?: {
-      jsPDF: new (options?: {
-        orientation?: "portrait" | "landscape" | "p" | "l";
-        unit?: "mm" | "pt" | "px" | "in";
-        format?: string | [number, number];
-      }) => {
-        internal: {
-          pageSize: {
-            getWidth: () => number;
-            getHeight: () => number;
-          };
-        };
-        setFillColor: (r: number, g: number, b: number) => void;
-        setDrawColor: (r: number, g: number, b: number) => void;
-        setTextColor: (r: number, g: number, b: number) => void;
-        setLineWidth: (w: number) => void;
-        setFont: (fontName: string, fontStyle?: string) => void;
-        setFontSize: (size: number) => void;
-        rect: (
-          x: number,
-          y: number,
-          w: number,
-          h: number,
-          style?: string
-        ) => void;
-        roundedRect: (
-          x: number,
-          y: number,
-          w: number,
-          h: number,
-          rx: number,
-          ry: number,
-          style?: string
-        ) => void;
-        line: (x1: number, y1: number, x2: number, y2: number) => void;
-        text: (
-          text: string | string[],
-          x: number,
-          y: number,
-          options?: Record<string, unknown>
-        ) => void;
-        splitTextToSize: (text: string, maxWidth: number) => string[];
-        addImage: (
-          imageData: string,
-          format: string,
-          x: number,
-          y: number,
-          w: number,
-          h: number
-        ) => void;
-        save: (filename: string) => void;
       };
     };
   }

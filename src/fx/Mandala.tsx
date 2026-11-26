@@ -42,18 +42,18 @@ export function Mandala({
     <svg viewBox="-260 -260 520 520" className={className} aria-hidden="true">
       <defs>
         <linearGradient id={`g1${uid}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FFE7A3" />
-          <stop offset="45%" stopColor="#F5B041" />
-          <stop offset="100%" stopColor="#F28C38" />
+          <stop offset="0%" stopColor="var(--ac4)" />
+          <stop offset="45%" stopColor="var(--ac3)" />
+          <stop offset="100%" stopColor="var(--ac)" />
         </linearGradient>
         <linearGradient id={`g2${uid}`} x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#FF7EB6" />
-          <stop offset="100%" stopColor="#F28C38" />
+          <stop offset="0%" stopColor="var(--ac5)" />
+          <stop offset="100%" stopColor="var(--ac)" />
         </linearGradient>
         <radialGradient id={`core${uid}`}>
-          <stop offset="0%" stopColor="#FFF3C4" stopOpacity="1" />
-          <stop offset="40%" stopColor="#F5B041" stopOpacity="0.7" />
-          <stop offset="100%" stopColor="#F28C38" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--ac4)" stopOpacity="1" />
+          <stop offset="40%" stopColor="var(--ac3)" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="var(--ac)" stopOpacity="0" />
         </radialGradient>
         <filter id={`glow${uid}`} x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="2.4" result="b" />
@@ -121,7 +121,7 @@ export function Mandala({
                     cx={Math.sin(a) * rr}
                     cy={-Math.cos(a) * rr}
                     r={ri === 4 ? 1.4 : 2.2}
-                    fill="#FFE7A3"
+                    fill="var(--ac4)"
                     initial={{ opacity: 0, scale: 0 }}
                     animate={
                       controlled

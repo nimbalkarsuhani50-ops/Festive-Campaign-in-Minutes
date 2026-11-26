@@ -12,10 +12,10 @@ interface HeaderProps {
 const NAV = [
   { id: "brief", label: "Brief" },
   { id: "big-idea", label: "Big Idea" },
-  { id: "instagram-posts", label: "Content" },
+  { id: "poster-section", label: "Posters" },
   { id: "reel-script", label: "Reel" },
-  { id: "channel-plan", label: "Channels" },
-  { id: "poster-section", label: "Poster" },
+  { id: "instagram-posts", label: "Carousel" },
+  { id: "channel-plan", label: "Budget" },
 ];
 
 export function Header({ hasCampaign, isExportingPdf, onExportPdf }: HeaderProps) {
@@ -34,7 +34,7 @@ export function Header({ hasCampaign, isExportingPdf, onExportPdf }: HeaderProps
           }}
           className="group flex items-center gap-2.5 whitespace-nowrap"
         >
-          <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#F5B041] to-[#F28C38] shadow-[0_0_24px_rgba(242,140,56,0.55)]">
+          <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ac3)] to-[var(--ac)] shadow-[0_0_24px_rgba(var(--ac-rgb),0.55)]">
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-[#1a0f05]" aria-hidden="true">
               {/* diya flame */}
               <path
@@ -45,7 +45,7 @@ export function Header({ hasCampaign, isExportingPdf, onExportPdf }: HeaderProps
             <span className="absolute inset-0 rounded-xl ring-1 ring-white/40 transition-transform duration-500 group-hover:rotate-45" />
           </span>
           <span className="font-display text-base font-bold tracking-tight text-white sm:text-xl">
-            Festive Campaign <span className="text-[#F5B041]">Board</span>
+            Festive Campaign <span className="text-[color:var(--ac3)]">Board</span>
           </span>
         </a>
 
@@ -70,7 +70,7 @@ export function Header({ hasCampaign, isExportingPdf, onExportPdf }: HeaderProps
                 {isActive && (
                   <motion.span
                     layoutId="nav-pill"
-                    className="absolute inset-0 -z-10 rounded-full bg-gradient-to-r from-[#F5B041] to-[#F28C38] shadow-[0_0_18px_rgba(242,140,56,0.45)]"
+                    className="absolute inset-0 -z-10 rounded-full bg-gradient-to-r from-[var(--ac3)] to-[var(--ac)] shadow-[0_0_18px_rgba(var(--ac-rgb),0.45)]"
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
@@ -84,12 +84,12 @@ export function Header({ hasCampaign, isExportingPdf, onExportPdf }: HeaderProps
           type="button"
           disabled={!hasCampaign || isExportingPdf}
           onClick={onExportPdf}
-          className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/50 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:border-[#F28C38] hover:bg-[#F28C38]/15 hover:shadow-[0_0_20px_rgba(242,140,56,0.28)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 whitespace-nowrap"
+          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--ac2)]/50 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:border-[color:var(--ac)] hover:bg-[var(--ac)]/15 hover:shadow-[0_0_20px_rgba(var(--ac-rgb),0.28)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 whitespace-nowrap"
         >
           {isExportingPdf ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#F28C38]" aria-hidden="true" />
+            <Loader2 className="h-4 w-4 animate-spin text-[color:var(--ac)]" aria-hidden="true" />
           ) : (
-            <FileDown className="h-4 w-4 text-[#F28C38]" aria-hidden="true" />
+            <FileDown className="h-4 w-4 text-[color:var(--ac)]" aria-hidden="true" />
           )}
           <span className="hidden sm:inline">{isExportingPdf ? "Exporting..." : "Export PDF"}</span>
         </button>
@@ -99,7 +99,7 @@ export function Header({ hasCampaign, isExportingPdf, onExportPdf }: HeaderProps
       <motion.div
         aria-hidden="true"
         style={{ scaleX: progress }}
-        className="absolute inset-x-0 -bottom-px h-[2px] origin-left bg-gradient-to-r from-[#F28C38] via-[#F5B041] to-[#FF7EB6] shadow-[0_0_12px_rgba(245,176,65,0.8)]"
+        className="absolute inset-x-0 -bottom-px h-[2px] origin-left bg-gradient-to-r from-[var(--ac)] via-[var(--ac3)] to-[var(--ac5)] shadow-[0_0_12px_rgba(var(--ac3-rgb),0.8)]"
       />
     </header>
   );

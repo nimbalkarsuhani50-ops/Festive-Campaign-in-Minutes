@@ -89,7 +89,7 @@ export function ReelScriptSection({ reelScript, brand, festival, stylePreset, se
               viewport={{ once: true }}
               transition={{ duration: 1.2, ease: EASE_OUT }}
               style={{ transformPerspective: 1400 }}
-              className="relative w-[280px] rounded-[44px] border border-white/15 bg-[#05070d] p-2.5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9),0_0_80px_-20px_rgba(242,140,56,0.45)] sm:w-[300px]"
+              className="relative w-[280px] rounded-[44px] border border-white/15 bg-[#05070d] p-2.5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9),0_0_80px_-20px_rgba(var(--ac-rgb),0.45)] sm:w-[300px]"
             >
               <div className="relative aspect-[9/19.5] overflow-hidden rounded-[36px]">
                 {/* Ken Burns background */}
@@ -116,7 +116,7 @@ export function ReelScriptSection({ reelScript, brand, festival, stylePreset, se
                 </div>
 
                 <div className="absolute inset-x-4 top-14 flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F5B041] to-[#F28C38] text-xs font-bold text-[#1a0f05]">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[var(--ac3)] to-[var(--ac)] text-xs font-bold text-[#1a0f05]">
                     {(brand || "B").charAt(0).toUpperCase()}
                   </span>
                   <span className="text-xs font-semibold text-white">{handle}</span>
@@ -134,7 +134,7 @@ export function ReelScriptSection({ reelScript, brand, festival, stylePreset, se
                       transition={{ duration: 0.55, ease: EASE_OUT }}
                       className="text-center"
                     >
-                      <span className="inline-block rounded-full bg-[#F28C38] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#1a0f05]">
+                      <span className="inline-block rounded-full bg-[var(--ac)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#1a0f05]">
                         {beat.label}
                       </span>
                       <p className="mt-3 text-[17px] font-bold leading-snug text-white [text-shadow:0_2px_16px_rgba(0,0,0,0.85)]">
@@ -165,7 +165,7 @@ export function ReelScriptSection({ reelScript, brand, festival, stylePreset, se
           <div className="space-y-4 lg:col-span-7">
             <div className="relative h-2 overflow-hidden rounded-full bg-white/[0.08]">
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#F28C38] via-[#F5B041] to-[#FF7EB6] shadow-[0_0_14px_rgba(245,176,65,0.8)]"
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--ac)] via-[var(--ac3)] to-[var(--ac5)] shadow-[0_0_14px_rgba(var(--ac3-rgb),0.8)]"
                 style={{ width: `${(t / DURATION) * 100}%` }}
               />
               {[3, 10].map((m) => (
@@ -181,11 +181,11 @@ export function ReelScriptSection({ reelScript, brand, festival, stylePreset, se
                   tilt={0}
                   onClick={() => setT(b.start + 0.01)}
                   className={`cursor-pointer rounded-2xl p-5 transition-[border-color,background-color,opacity] duration-500 sm:p-6 ${
-                    on ? "!border-[#F28C38]/70 !bg-[#F28C38]/[0.08] opacity-100" : "opacity-60 hover:opacity-90"
+                    on ? "!border-[color:var(--ac)]/70 !bg-[var(--ac)]/[0.08] opacity-100" : "opacity-60 hover:opacity-90"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-4">
-                    <span className={`text-sm font-bold tabular-nums ${on ? "text-[#F5B041]" : "text-slate-400"}`}>
+                    <span className={`text-sm font-bold tabular-nums ${on ? "text-[color:var(--ac3)]" : "text-slate-400"}`}>
                       {b.range} · {b.label}
                     </span>
                     <span className="text-xs font-semibold text-slate-500 tabular-nums">Beat 0{i + 1}</span>
@@ -194,7 +194,7 @@ export function ReelScriptSection({ reelScript, brand, festival, stylePreset, se
                     {b.content}
                   </p>
                   {on && (
-                    <motion.div layoutId="beat-bar" className="mt-4 h-0.5 rounded-full bg-gradient-to-r from-[#F28C38] to-transparent" />
+                    <motion.div layoutId="beat-bar" className="mt-4 h-0.5 rounded-full bg-gradient-to-r from-[var(--ac)] to-transparent" />
                   )}
                 </SpotlightCard>
               );

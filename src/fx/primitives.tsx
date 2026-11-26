@@ -276,7 +276,7 @@ export function SectionHeading({
             whileInView={{ scaleX: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 1.1, delay: 0.15, ease: EASE_OUT }}
-            className="h-px max-w-[220px] flex-1 origin-left bg-gradient-to-r from-[#F28C38] via-[#D4AF37]/60 to-transparent"
+            className="h-px max-w-[220px] flex-1 origin-left bg-gradient-to-r from-[var(--ac)] via-[var(--ac2)]/60 to-transparent"
           />
           {kicker && (
             <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
