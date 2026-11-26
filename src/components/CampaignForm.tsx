@@ -6,7 +6,6 @@ import {
   INDIA_FESTIVALS,
   INTERNATIONAL_FESTIVALS,
   SAVED_CAMPAIGN_KEYS,
-  STYLE_PRESETS,
   formatBudget,
   getRegionConfig,
   getRegionsForMarket,
@@ -51,7 +50,7 @@ export function CampaignForm({
   const activeMarket: MarketType = input.market ?? "India";
   const regionConfig = getRegionConfig(activeMarket, input.region);
   const marketRegions = getRegionsForMarket(activeMarket);
-  const activeStyle: StylePreset = input.stylePreset ?? "Festive Gold";
+
 
   const marketFestivalPool =
     activeMarket === "India" ? INDIA_FESTIVALS : INTERNATIONAL_FESTIVALS;
@@ -94,10 +93,10 @@ export function CampaignForm({
                   type="button"
                   aria-pressed={isActive}
                   onClick={() => onLoadSaved(presetKey)}
-                  className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F28C38] whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ac)] whitespace-nowrap shrink-0 cursor-pointer ${
                     isActive
-                      ? "border-[#F28C38] bg-[#F28C38]/20 text-white shadow-[0_0_20px_rgba(242,140,56,0.28)]"
-                      : "border-white/15 bg-white/[0.04] text-slate-200 hover:border-[#D4AF37]/60 hover:bg-white/[0.09] hover:text-white"
+                      ? "border-[color:var(--ac)] bg-[var(--ac)]/20 text-white shadow-[0_0_20px_rgba(var(--ac-rgb),0.28)]"
+                      : "border-white/15 bg-white/[0.04] text-slate-200 hover:border-[color:var(--ac2)]/60 hover:bg-white/[0.09] hover:text-white"
                   }`}
                 >
                   {presetKey}
@@ -112,7 +111,7 @@ export function CampaignForm({
           <div className="rounded-xl border border-white/12 bg-white/[0.03] p-4 sm:p-5">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-center">
               <div className="lg:col-span-5 space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#D4AF37]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--ac2)]">
                   Step 1 · Choose Your Market
                 </p>
                 <div
@@ -136,7 +135,7 @@ export function CampaignForm({
                         {isSelected && (
                           <motion.span
                             layoutId="market-pill"
-                            className="absolute inset-0 -z-10 rounded-lg bg-gradient-to-r from-[#F28C38] to-[#F5A623] shadow-[0_4px_16px_rgba(242,140,56,0.38)]"
+                            className="absolute inset-0 -z-10 rounded-lg bg-gradient-to-r from-[var(--ac)] to-[var(--ac)] shadow-[0_4px_16px_rgba(var(--ac-rgb),0.38)]"
                             transition={{ type: "spring", stiffness: 420, damping: 32 }}
                           />
                         )}
@@ -165,7 +164,7 @@ export function CampaignForm({
                   id="region-select"
                   value={regionConfig.id}
                   onChange={(e) => onChangeRegion(e.target.value)}
-                  className="w-full rounded-xl border border-white/15 bg-[#0A1022]/90 px-3.5 py-2.5 text-sm sm:text-base font-medium text-white transition-colors focus:border-[#F28C38] focus:outline-none focus:ring-2 focus:ring-[#F28C38]/30 cursor-pointer"
+                  className="w-full rounded-xl border border-white/15 bg-[#0A1022]/90 px-3.5 py-2.5 text-sm sm:text-base font-medium text-white transition-colors focus:border-[color:var(--ac)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ac)]/30 cursor-pointer"
                 >
                   {marketRegions.map((reg) => (
                     <option
@@ -192,7 +191,7 @@ export function CampaignForm({
                   onChange={(e) =>
                     onChangeInput("language", e.target.value as RegionalLanguage)
                   }
-                  className="w-full rounded-xl border border-white/15 bg-[#0A1022]/90 px-3.5 py-2.5 text-sm sm:text-base font-medium text-white transition-colors focus:border-[#F28C38] focus:outline-none focus:ring-2 focus:ring-[#F28C38]/30 cursor-pointer"
+                  className="w-full rounded-xl border border-white/15 bg-[#0A1022]/90 px-3.5 py-2.5 text-sm sm:text-base font-medium text-white transition-colors focus:border-[color:var(--ac)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ac)]/30 cursor-pointer"
                 >
                   {regionConfig.languages.map((lang) => (
                     <option
@@ -223,11 +222,11 @@ export function CampaignForm({
                 onChange={(e) =>
                   onChangeInput("festival", e.target.value as FestivalName)
                 }
-                className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base font-medium text-white transition-colors focus:border-[#F28C38] focus:outline-none focus:ring-2 focus:ring-[#F28C38]/30 cursor-pointer"
+                className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base font-medium text-white transition-colors focus:border-[color:var(--ac)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ac)]/30 cursor-pointer"
               >
                 <optgroup
                   label={`Suggested for ${regionConfig.id}`}
-                  className="bg-[#0D1526] text-[#F28C38]"
+                  className="bg-[#0D1526] text-[color:var(--ac)]"
                 >
                   {regionConfig.suggestedFestivals.map((fest) => (
                     <option
@@ -291,7 +290,7 @@ export function CampaignForm({
                     ? "e.g. Mithai Mahal"
                     : "e.g. Maison Lumière"
                 }
-                className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base text-white placeholder:text-slate-500 transition-colors focus:border-[#F28C38] focus:outline-none focus:ring-2 focus:ring-[#F28C38]/30"
+                className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base text-white placeholder:text-slate-500 transition-colors focus:border-[color:var(--ac)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ac)]/30"
               />
             </div>
 
@@ -308,7 +307,7 @@ export function CampaignForm({
                 value={input.city}
                 onChange={(e) => onChangeInput("city", e.target.value)}
                 placeholder={`e.g. ${regionConfig.defaultCity}`}
-                className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base text-white placeholder:text-slate-500 transition-colors focus:border-[#F28C38] focus:outline-none focus:ring-2 focus:ring-[#F28C38]/30"
+                className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base text-white placeholder:text-slate-500 transition-colors focus:border-[color:var(--ac)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ac)]/30"
               />
             </div>
 
@@ -325,9 +324,26 @@ export function CampaignForm({
                 value={input.audience}
                 onChange={(e) => onChangeInput("audience", e.target.value)}
                 placeholder={`e.g. ${input.festival} gift shoppers`}
-                className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base text-white placeholder:text-slate-500 transition-colors focus:border-[#F28C38] focus:outline-none focus:ring-2 focus:ring-[#F28C38]/30"
+                className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base text-white placeholder:text-slate-500 transition-colors focus:border-[color:var(--ac)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ac)]/30"
               />
             </div>
+          </div>
+
+          {/* What the brand sells: drives brand-specific posters and copy */}
+          <div>
+            <label htmlFor="business-input" className="mb-2 flex items-baseline justify-between gap-3 text-sm font-medium text-slate-200">
+              <span>What does the brand sell?</span>
+              <span className="text-xs font-normal text-slate-400">Recommended: makes posters show your real products</span>
+            </label>
+            <input
+              id="business-input"
+              type="text"
+              maxLength={160}
+              value={input.business ?? ""}
+              onChange={(e) => onChangeInput("business", e.target.value)}
+              placeholder="e.g. Sweet shop: kaju katli, motichoor laddoo and premium gift boxes"
+              className="w-full rounded-xl border border-white/15 bg-[#0A1022]/80 px-3.5 py-2.5 text-base text-white placeholder:text-slate-500 transition-colors focus:border-[color:var(--ac)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ac)]/30"
+            />
           </div>
 
           {/* Budget Slider */}
@@ -339,7 +355,7 @@ export function CampaignForm({
               >
                 Campaign Budget ({regionConfig.currencyCode})
               </label>
-              <span className="text-lg font-bold text-[#F28C38] tabular-nums">
+              <span className="text-lg font-bold text-[color:var(--ac)] tabular-nums">
                 {formatBudget(input.budget, activeMarket, regionConfig.id)}
               </span>
             </div>
@@ -366,68 +382,11 @@ export function CampaignForm({
             </div>
           </div>
 
-          {/* Style Presets + Primary Generate CTA */}
-          <div className="flex flex-col gap-6 border-t border-white/10 pt-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex-1 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-slate-200">
-                  Style Preset
-                </p>
-                <span className="text-xs text-slate-400">
-                  Shapes copy tone & poster composition
-                </span>
-              </div>
-
-              <div
-                role="radiogroup"
-                aria-label="Campaign style preset"
-                className="grid grid-cols-2 gap-3 sm:grid-cols-4"
-              >
-                {STYLE_PRESETS.map((preset) => {
-                  const isSelected = activeStyle === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      onClick={() => onChangeInput("stylePreset", preset.id)}
-                      className={`group relative isolate flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition-all duration-300 hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F28C38] cursor-pointer ${
-                        isSelected
-                          ? "border-[#F28C38] bg-[#F28C38]/14 shadow-[0_0_24px_rgba(242,140,56,0.22)]"
-                          : "border-white/12 bg-white/[0.03] hover:border-[#D4AF37]/45 hover:bg-white/[0.07]"
-                      }`}
-                    >
-                      {isSelected && (
-                        <motion.span
-                          layoutId="style-glow"
-                          className="absolute inset-0 -z-10 rounded-xl bg-[radial-gradient(120%_120%_at_0%_0%,rgba(242,140,56,0.28),transparent_60%)]"
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
-                      <div className="flex w-full items-center justify-between gap-2">
-                        <span className="text-sm font-semibold text-white whitespace-nowrap">
-                          {preset.id}
-                        </span>
-                        <span className="flex items-center gap-1 shrink-0" aria-hidden="true">
-                          {preset.swatches.map((hex) => (
-                            <span
-                              key={hex}
-                              className="h-2.5 w-2.5 rounded-full border border-white/25 transition-transform duration-300 group-hover:scale-125"
-                              style={{ backgroundColor: hex }}
-                            />
-                          ))}
-                        </span>
-                      </div>
-                      <span className="text-[11px] leading-snug text-slate-300 line-clamp-2">
-                        {preset.subtitle}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
+          {/* Primary Generate CTA */}
+          <div className="flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-xl text-sm text-slate-300">
+              You get three brand-made posters with fresh AI artwork, a 10-second reel, a 5-slide carousel, the script and the budget plan.
+            </p>
             <Magnetic className="lg:w-64 shrink-0" strength={0.18}>
               <button
                 type="submit"

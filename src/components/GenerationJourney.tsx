@@ -2,6 +2,8 @@ import { Check, Compass, LayoutGrid, Lightbulb, PenTool, Wand2 } from "lucide-re
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Mandala } from "../fx/Mandala";
+import { FestiveGlyph } from "../fx/FestiveGlyph";
+import { getFestivalMotif } from "../data/festivalMotifs";
 import { EASE_OUT } from "../fx/primitives";
 import type { FestivalName, StylePreset } from "../types";
 
@@ -78,6 +80,7 @@ export function GenerationJourney({
   stylePreset,
   elapsedSeconds,
 }: GenerationJourneyProps) {
+  const motif = getFestivalMotif(festival);
   const clampedStage = Math.max(0, Math.min(stageIndex, JOURNEY_STAGES.length - 1));
   const currentStage = JOURNEY_STAGES[clampedStage];
   const done = progressPercent >= 100;
@@ -114,7 +117,7 @@ export function GenerationJourney({
             transition={{ delay: 0.2, duration: 0.7, ease: EASE_OUT }}
             className="relative z-10 flex flex-wrap items-center justify-center gap-2"
           >
-            {[brand || "Brand", festival, city, stylePreset].map((chip, i) => (
+            {[brand || "Brand", festival, city, "3 posters + reel"].map((chip, i) => (
               <motion.span
                 key={chip + i}
                 initial={{ opacity: 0, scale: 0.6 }}
@@ -124,7 +127,7 @@ export function GenerationJourney({
                   i === 0
                     ? "border-white/25 bg-white/10 text-white"
                     : i === 1
-                      ? "border-[#F28C38]/50 bg-[#F28C38]/10 text-[#F5B041]"
+                      ? "border-[color:var(--ac)]/50 bg-[var(--ac)]/10 text-[color:var(--ac3)]"
                       : "border-white/10 bg-white/[0.04] text-slate-300"
                 }`}
               >
@@ -143,15 +146,15 @@ export function GenerationJourney({
             transition={{ duration: done ? 0.6 : 1.1, ease: EASE_OUT }}
             className="relative z-10 my-6 aspect-square w-[min(78vw,52vh,440px)]"
           >
-            <div className="absolute inset-[22%] rounded-full bg-[radial-gradient(circle,rgba(245,176,65,0.45),transparent_70%)] blur-2xl" />
+            <div className="absolute inset-[22%] rounded-full bg-[radial-gradient(circle,rgba(var(--ac3-rgb),0.45),transparent_70%)] blur-2xl" />
             <Mandala className="absolute inset-0 h-full w-full" progress={0.12 + (pct / 100) * 0.88} spinSeconds={60} />
 
             <svg viewBox="-230 -230 460 460" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
               <defs>
                 <linearGradient id="jring" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#F28C38" />
-                  <stop offset="55%" stopColor="#F5B041" />
-                  <stop offset="100%" stopColor="#FF7EB6" />
+                  <stop offset="0%" stopColor="var(--ac)" />
+                  <stop offset="55%" stopColor="var(--ac3)" />
+                  <stop offset="100%" stopColor="var(--ac5)" />
                 </linearGradient>
               </defs>
               <circle r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
@@ -165,7 +168,7 @@ export function GenerationJourney({
                 initial={{ strokeDashoffset: circumference }}
                 animate={{ strokeDashoffset: circumference - (pct / 100) * circumference }}
                 transition={{ duration: 0.7, ease: "easeOut" }}
-                style={{ filter: "drop-shadow(0 0 8px rgba(245,176,65,0.8))" }}
+                style={{ filter: "drop-shadow(0 0 8px rgba(var(--ac3-rgb),0.8))" }}
               />
             </svg>
 
@@ -178,7 +181,7 @@ export function GenerationJourney({
                 transition={{ duration: 6 + i * 3, repeat: Infinity, ease: "linear" }}
               >
                 <span
-                  className="absolute left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-[#FFE7A3] shadow-[0_0_16px_6px_rgba(245,176,65,0.7)]"
+                  className="absolute left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--ac4)] shadow-[0_0_16px_6px_rgba(var(--ac3-rgb),0.7)]"
                   style={{ top: `${2 + i * 9}%` }}
                 />
               </motion.div>
@@ -193,18 +196,20 @@ export function GenerationJourney({
                     initial={{ scale: 0, rotate: -90 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 260, damping: 16 }}
-                    className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#FFE7A3] to-[#F28C38] text-[#1a0f05] shadow-[0_0_60px_rgba(245,176,65,0.9)]"
+                    className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[var(--ac4)] to-[var(--ac)] text-[#1a0f05] shadow-[0_0_60px_rgba(var(--ac3-rgb),0.9)]"
                   >
                     <Check className="h-10 w-10 stroke-[3]" aria-hidden="true" />
                   </motion.div>
                 ) : (
+                  <motion.div key="pct" className="flex flex-col items-center gap-1">
+                  <FestiveGlyph kind={motif.glyph} className="h-16 w-16 drop-shadow-[0_0_18px_rgba(var(--ac3-rgb),0.7)] sm:h-20 sm:w-20" />
                   <motion.span
-                    key="pct"
-                    className="font-display text-5xl font-bold tabular-nums text-white drop-shadow-[0_0_24px_rgba(245,176,65,0.6)] sm:text-6xl"
+                    className="font-display text-5xl font-bold tabular-nums text-white drop-shadow-[0_0_24px_rgba(var(--ac3-rgb),0.6)] sm:text-6xl"
                   >
                     {Math.round(pct)}
-                    <span className="text-2xl text-[#F5B041]">%</span>
+                    <span className="text-2xl text-[color:var(--ac3)]">%</span>
                   </motion.span>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -224,7 +229,7 @@ export function GenerationJourney({
                   <ScrambleText text={done ? "Your campaign is ready" : currentStage.title} />
                 </h2>
                 <p className="mt-2 text-sm text-slate-300 sm:text-base">
-                  {done ? "Raising the curtain..." : currentStage.description}
+                  {done ? "Raising the curtain..." : `${motif.lines[clampedStage]} · ${currentStage.description}`}
                 </p>
               </motion.div>
             </AnimatePresence>
@@ -235,7 +240,7 @@ export function GenerationJourney({
             <div aria-hidden="true" className="absolute left-6 right-6 top-4 h-px bg-white/10" />
             <motion.div
               aria-hidden="true"
-              className="absolute left-6 top-4 h-px origin-left bg-gradient-to-r from-[#F28C38] to-[#F5B041] shadow-[0_0_10px_rgba(245,176,65,0.9)]"
+              className="absolute left-6 top-4 h-px origin-left bg-gradient-to-r from-[var(--ac)] to-[var(--ac3)] shadow-[0_0_10px_rgba(var(--ac3-rgb),0.9)]"
               style={{ right: "1.5rem" }}
               initial={{ scaleX: 0 }}
               animate={{ scaleX: done ? 1 : clampedStage / (JOURNEY_STAGES.length - 1) }}
@@ -251,15 +256,15 @@ export function GenerationJourney({
                     animate={{
                       scale: isActive ? 1.15 : 1,
                       boxShadow: isActive
-                        ? "0 0 0 6px rgba(242,140,56,0.18), 0 0 24px rgba(242,140,56,0.7)"
+                        ? "0 0 0 6px rgba(var(--ac-rgb),0.18), 0 0 24px rgba(var(--ac-rgb),0.7)"
                         : "0 0 0 0 rgba(0,0,0,0)",
                     }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
                       isDone
-                        ? "bg-[#D4AF37] text-[#080D1A]"
+                        ? "bg-[var(--ac2)] text-[#080D1A]"
                         : isActive
-                          ? "bg-[#F28C38] text-[#080D1A]"
+                          ? "bg-[var(--ac)] text-[#080D1A]"
                           : "border border-white/15 bg-[#0B1224] text-slate-500"
                     }`}
                   >
@@ -267,7 +272,7 @@ export function GenerationJourney({
                   </motion.span>
                   <span
                     className={`hidden text-center text-[11px] font-semibold sm:block ${
-                      isActive ? "text-[#F5B041]" : isDone ? "text-slate-200" : "text-slate-500"
+                      isActive ? "text-[color:var(--ac3)]" : isDone ? "text-slate-200" : "text-slate-500"
                     }`}
                   >
                     {stage.title}
@@ -285,7 +290,7 @@ export function GenerationJourney({
                 initial={{ opacity: 0, scale: 0.2 }}
                 animate={{ opacity: [0, 0.85, 0], scale: [0.2, 2.6, 3.2] }}
                 transition={{ duration: 0.9, ease: "easeOut" }}
-                className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[60vmin] w-[60vmin] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,#FFF3C4_0%,rgba(245,176,65,0.6)_35%,transparent_70%)]"
+                className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[60vmin] w-[60vmin] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,#FFF3C4_0%,rgba(var(--ac3-rgb),0.6)_35%,transparent_70%)]"
               />
             )}
           </AnimatePresence>

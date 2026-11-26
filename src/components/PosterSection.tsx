@@ -1,103 +1,160 @@
-import { Download, Loader2, RefreshCw } from "lucide-react";
-import { AnimatePresence, motion, useInView } from "motion/react";
-import { sparkleFrom } from "../fx/celebrate";
-import { Magnetic, Reveal, SectionHeading } from "../fx/primitives";
+import { Download, Images, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { motion, useInView } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { POSTER_ASPECT_RATIOS, getAspectRatioSpec } from "../data/campaigns";
+import { sparkleFrom } from "../fx/celebrate";
+import { FestiveGlyph } from "../fx/FestiveGlyph";
+import { getFestivalMotif } from "../data/festivalMotifs";
+import { Magnetic, Reveal, SectionHeading } from "../fx/primitives";
+import type { CampaignData, CampaignInput, PosterAspectRatio } from "../types";
 import {
-  POSTER_ASPECT_RATIOS,
-  getAspectRatioSpec,
-} from "../data/campaigns";
-import { makePosterSVG } from "../posters.js";
-import type {
-  FestivalName,
-  PosterAspectRatio,
-  RegionalLanguage,
-  StylePreset,
-} from "../types";
-import { downloadPosterPng, getPosterBandStyle } from "../utils/posterExport";
+  buildPosterParams,
+  composePosterPngDataUrl,
+  downloadPosterPng,
+  getPosterConcepts,
+  type PosterCompositionParams,
+} from "../utils/posterExport";
 
 interface PosterSectionProps {
-  festival: FestivalName;
-  brand: string;
-  taglineEn: string;
-  taglineRegional: string;
-  language: RegionalLanguage;
-  posterPrompt: string;
-  stylePreset: StylePreset;
+  input: CampaignInput;
+  campaign: CampaignData;
   aspectRatio: PosterAspectRatio;
   posterSeed: number;
   revealKey: number;
+  /** Keys like "0|instagram_feed" for artwork still being generated. */
+  artPending: Record<string, boolean>;
+  artError: string | null;
   onChangeAspectRatio: (ratio: PosterAspectRatio) => void;
-  onRegenerateVariation: () => void;
+  onNewArtwork: (posterIndex: number) => void;
+}
+
+/** Composes a poster to a PNG data URL whenever its inputs change. */
+function useComposed(params: PosterCompositionParams | null) {
+  const [url, setUrl] = useState<string | null>(null);
+  const key = params ? JSON.stringify(params) : "";
+  useEffect(() => {
+    if (!params) return;
+    let alive = true;
+    composePosterPngDataUrl(params)
+      .then((u) => alive && setUrl(u))
+      .catch(() => alive && setUrl(null));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return url;
+}
+
+function PosterThumb({
+  params,
+  festival,
+  index,
+  concept,
+  layout,
+  active,
+  pending,
+  onSelect,
+}: {
+  params: PosterCompositionParams;
+  festival: string;
+  index: number;
+  concept: string;
+  layout: string;
+  active: boolean;
+  pending: boolean;
+  onSelect: () => void;
+}) {
+  const url = useComposed(params);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={active}
+      className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 cursor-pointer ${
+        active
+          ? "border-[color:var(--ac)] shadow-[0_0_28px_rgba(var(--ac-rgb),0.35)]"
+          : "border-white/12 hover:border-[color:var(--ac2)]/60"
+      }`}
+    >
+      <div className="relative aspect-[4/5] bg-black/30">
+        {url && <img src={url} alt="" className="h-full w-full object-cover" draggable={false} />}
+        {pending && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/55 px-2 text-center text-xs font-semibold text-white backdrop-blur-[2px]">
+            <FestiveGlyph kind={getFestivalMotif(festival).glyph} className="h-10 w-10" />
+            {getFestivalMotif(festival).working}…
+          </div>
+        )}
+      </div>
+      <div className="space-y-0.5 bg-black/35 px-3 py-2.5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--ac3)]">Poster {index + 1}</p>
+        <p className="truncate text-sm font-semibold text-white">{concept}</p>
+        <p className="text-[11px] text-slate-400">{layout}</p>
+      </div>
+    </button>
+  );
 }
 
 export function PosterSection({
-  festival,
-  brand,
-  taglineEn,
-  taglineRegional,
-  language,
-  posterPrompt,
-  stylePreset,
+  input,
+  campaign,
   aspectRatio,
   posterSeed,
   revealKey,
+  artPending,
+  artError,
   onChangeAspectRatio,
-  onRegenerateVariation,
+  onNewArtwork,
 }: PosterSectionProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [tilt, setTilt] = useState<{ rx: number; ry: number }>({ rx: 0, ry: 0 });
-  const [glare, setGlare] = useState<{ x: number; y: number; on: boolean }>({ x: 50, y: 50, on: false });
+  const language = input.language;
+  const [selected, setSelected] = useState(0);
+  const [isDownloading, setIsDownloading] = useState<"one" | "all" | null>(null);
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+  const [glare, setGlare] = useState({ x: 50, y: 50, on: false });
   const downloadRef = useRef<HTMLButtonElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const stageInView = useInView(stageRef, { once: true, amount: 0.35 });
-  const [posterCopyLang, setPosterCopyLang] = useState<"regional" | "english">(
-    language !== "English" ? "regional" : "english"
+  const stageInView = useInView(stageRef, { once: true, amount: 0.3 });
+  const [copyLang, setCopyLang] = useState<"english" | "regional">("english");
+
+  useEffect(() => setSelected(0), [revealKey]);
+
+  const concepts = useMemo(() => getPosterConcepts(campaign, input.festival), [campaign, input.festival]);
+  const useRegional = copyLang === "regional";
+  const allParams = useMemo(
+    () => concepts.map((_, i) => buildPosterParams(input, campaign, { posterIndex: i, seed: posterSeed, aspectRatio, useRegional })),
+    [concepts, input, campaign, posterSeed, aspectRatio, useRegional]
   );
-
-  useEffect(() => {
-    setPosterCopyLang(language !== "English" ? "regional" : "english");
-  }, [language]);
-
+  const thumbParams = useMemo(
+    () => concepts.map((_, i) => buildPosterParams(input, campaign, { posterIndex: i, seed: posterSeed, aspectRatio: "instagram_feed", useRegional })),
+    [concepts, input, campaign, posterSeed, useRegional]
+  );
+  const current = allParams[selected] ?? allParams[0];
+  const posterPng = useComposed(current);
+  const concept = concepts[selected] ?? concepts[0];
   const ratioSpec = getAspectRatioSpec(aspectRatio);
   const isVertical = aspectRatio !== "instagram_feed";
-  const showRegional =
-    language !== "English" &&
-    posterCopyLang === "regional" &&
-    Boolean(taglineRegional.trim());
+  const hasAiArt = Boolean(campaign.posters?.some((p) => p.token));
+  const pendingHere = Boolean(artPending[`${selected}|${aspectRatio}`]);
 
-  const activeTagline = showRegional ? taglineRegional : taglineEn;
-  const isRtl =
-    showRegional && (language === "Arabic" || language === "Urdu");
-
-  const posterSvg = useMemo(() => {
-    const rawSvg = makePosterSVG(festival, posterSeed, stylePreset, aspectRatio);
-    return rawSvg.replace(
-      "<svg ",
-      '<svg style="width:100%;height:100%;display:block;" '
-    );
-  }, [festival, posterSeed, stylePreset, aspectRatio]);
-
-  const bandStyle = useMemo(
-    () => getPosterBandStyle(stylePreset),
-    [stylePreset]
-  );
-
-  async function handleDownload() {
-    setIsDownloading(true);
+  async function downloadOne() {
+    setIsDownloading("one");
     try {
-      await downloadPosterPng({
-        festival,
-        brand,
-        taglineEn: activeTagline,
-        seed: posterSeed,
-        stylePreset,
-        aspectRatio,
-        isRtl,
-      });
+      await downloadPosterPng(current);
       sparkleFrom(downloadRef.current, 40);
     } finally {
-      setIsDownloading(false);
+      setIsDownloading(null);
+    }
+  }
+
+  async function downloadAll() {
+    setIsDownloading("all");
+    try {
+      for (const p of allParams) {
+        await downloadPosterPng(p);
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    } finally {
+      setIsDownloading(null);
     }
   }
 
@@ -105,287 +162,206 @@ export function PosterSection({
     const rect = e.currentTarget.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width - 0.5;
     const py = (e.clientY - rect.top) / rect.height - 0.5;
-    setTilt({
-      rx: Number((-py * 14).toFixed(2)),
-      ry: Number((px * 14).toFixed(2)),
-    });
+    setTilt({ rx: Number((-py * 10).toFixed(2)), ry: Number((px * 10).toFixed(2)) });
     setGlare({ x: (px + 0.5) * 100, y: (py + 0.5) * 100, on: true });
   }
 
-  function handlePointerLeave() {
-    setTilt({ rx: 0, ry: 0 });
-    setGlare((g) => ({ ...g, on: false }));
-  }
-
-  const curtainKey = `${revealKey}-${posterSeed}-${stylePreset}-${festival}-${aspectRatio}`;
-
   return (
-    <section id="poster-section" aria-label="Campaign Poster" className="scroll-section space-y-7">
+    <section id="poster-section" aria-label="Campaign Posters" className="scroll-section space-y-7">
       <SectionHeading
-        index="07"
-        kicker="Print & social ready"
-        title="The Poster"
+        index="03"
+        kicker="Ready to post"
+        title="Three Posters"
         right={
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={onRegenerateVariation}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:scale-[1.02] hover:border-[#D4AF37]/65 hover:bg-white/[0.1] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F28C38] whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            <RefreshCw className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
-            <span>New variation</span>
-          </button>
-
-          <Magnetic strength={0.2}>
-          <button
-            ref={downloadRef}
-            type="button"
-            disabled={isDownloading}
-            onClick={handleDownload}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#F28C38] to-[#F5A623] px-5 py-2.5 text-sm font-bold text-[#090E1A] shadow-[0_6px_24px_-4px_rgba(242,140,56,0.5)] transition-all duration-200 hover:scale-[1.03] hover:shadow-[0_10px_28px_-4px_rgba(242,140,56,0.72)] active:scale-[0.98] disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            {isDownloading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                <span>Preparing PNG...</span>
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" aria-hidden="true" />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => onNewArtwork(selected)}
+              disabled={pendingHere}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:border-[color:var(--ac2)]/65 hover:bg-white/[0.1] disabled:opacity-60 cursor-pointer"
+            >
+              <RefreshCw className={`h-4 w-4 text-[color:var(--ac2)] ${pendingHere ? "animate-spin" : ""}`} aria-hidden="true" />
+              <span>{hasAiArt ? "New artwork" : "New variation"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={downloadAll}
+              disabled={isDownloading !== null}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:border-[color:var(--ac2)]/65 hover:bg-white/[0.1] disabled:opacity-60 cursor-pointer"
+            >
+              {isDownloading === "all" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Images className="h-4 w-4" aria-hidden="true" />}
+              <span>Download all 3</span>
+            </button>
+            <Magnetic strength={0.2}>
+              <button
+                ref={downloadRef}
+                type="button"
+                disabled={isDownloading !== null}
+                onClick={downloadOne}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--ac)] to-[var(--ac3)] px-5 py-2.5 text-sm font-bold text-[#090E1A] shadow-[0_6px_24px_-4px_rgba(var(--ac-rgb),0.5)] transition-all duration-200 hover:scale-[1.03] disabled:opacity-70 cursor-pointer"
+              >
+                {isDownloading === "one" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
                 <span>Download PNG</span>
-              </>
-            )}
-          </button>
-          </Magnetic>
-        </div>
+              </button>
+            </Magnetic>
+          </div>
         }
       />
 
       <Reveal>
-      <div className="glass-card relative overflow-hidden rounded-3xl p-5 sm:p-8 lg:p-12">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-[8%] top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(242,140,56,0.25)_0%,rgba(212,175,55,0.08)_45%,transparent_70%)] blur-2xl lg:left-[12%]"
-        />
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-center">
-          {/* 3D Perspective Reveal Poster Showcase */}
-          <div
-            ref={stageRef}
-            className="relative lg:col-span-7 flex justify-center"
-            style={{ perspective: "1200px" }}
-          >
-            <motion.div
-              key={curtainKey}
-              initial={{ opacity: 0, scale: 0.86, rotateX: 16, rotateY: -18, y: 40 }}
-              animate={
-                stageInView
-                  ? { opacity: 1, scale: 1, rotateX: tilt.rx, rotateY: tilt.ry, y: 0 }
-                  : undefined
-              }
-              transition={{
-                opacity: { duration: 0.45 },
-                scale: { type: "spring", stiffness: 180, damping: 20 },
-                rotateX: { type: "spring", stiffness: 210, damping: 22 },
-                rotateY: { type: "spring", stiffness: 210, damping: 22 },
-                y: { type: "spring", stiffness: 180, damping: 20 },
-              }}
-              onMouseMove={handlePointerMove}
-              onMouseLeave={handlePointerLeave}
-              style={{ transformStyle: "preserve-3d" }}
-              className={`relative w-full overflow-hidden rounded-xl border border-[#D4AF37]/45 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8),0_0_40px_-10px_rgba(242,140,56,0.28)] ${
-                isVertical
-                  ? "aspect-[9/16] max-w-[330px]"
-                  : "aspect-[4/5] max-w-[440px]"
-              }`}
-            >
-              <div
-                className="h-full w-full"
-                dangerouslySetInnerHTML={{ __html: posterSvg }}
+        <div className="glass-card relative overflow-hidden rounded-3xl p-5 sm:p-8 lg:p-10">
+          <div className="grid grid-cols-3 gap-3 sm:gap-5 lg:hidden">
+            {thumbParams.map((p, i) => (
+              <PosterThumb
+                key={i}
+                params={p}
+                festival={input.festival}
+                index={i}
+                concept={concepts[i].concept}
+                layout={concepts[i].layout}
+                active={i === selected}
+                pending={Boolean(artPending[`${i}|instagram_feed`])}
+                onSelect={() => setSelected(i)}
               />
-
-              {/* Typography Brand Band matching PNG export 1:1 */}
-              <div
-                className="absolute inset-x-0 bottom-0 flex h-[16%] flex-col items-center justify-center px-5 text-center"
-                style={{
-                  backgroundColor: bandStyle.bandBg,
-                  borderTop: `2px solid ${bandStyle.dividerColor}`,
-                }}
-              >
-                <span
-                  className="text-[10px] font-semibold tracking-[0.18em] uppercase"
-                  style={{ color: bandStyle.festivalLabelColor }}
-                >
-                  {festival}
-                </span>
-                <p
-                  className="mt-0.5 w-full truncate text-lg sm:text-2xl font-bold tracking-tight"
-                  style={{
-                    color: bandStyle.brandColor,
-                    fontFamily: bandStyle.brandFontFamily,
-                  }}
-                >
-                  {brand}
-                </p>
-                <p
-                  dir={isRtl ? "rtl" : "ltr"}
-                  className="mt-0.5 w-full truncate text-xs sm:text-sm font-medium"
-                  style={{ color: bandStyle.taglineColor }}
-                >
-                  {activeTagline}
-                </p>
-              </div>
-
-              {/* Metallic shine sweep on reveal */}
-              {stageInView && <div
-                aria-hidden="true"
-                className="poster-shine-sweep pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-              />}
-
-              {/* Holographic glare that follows the cursor */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 mix-blend-overlay transition-opacity duration-300"
-                style={{
-                  opacity: glare.on ? 1 : 0,
-                  background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,0.55), rgba(255,231,163,0.18) 25%, transparent 55%)`,
-                }}
-              />
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 mix-blend-color-dodge transition-opacity duration-300"
-                style={{
-                  opacity: glare.on ? 0.22 : 0,
-                  background: `linear-gradient(${115 + (glare.x - 50) * 0.8}deg, transparent 20%, rgba(255,126,182,0.6) 38%, rgba(245,176,65,0.6) 50%, rgba(120,200,255,0.5) 62%, transparent 80%)`,
-                }}
-              />
-
-              {/* Curtain reveal: two gold panels part to unveil the poster */}
-              <AnimatePresence>
-                <motion.div
-                  key={`l-${curtainKey}`}
-                  aria-hidden="true"
-                  initial={{ x: "0%" }}
-                  animate={stageInView ? { x: "-101%" } : undefined}
-                  transition={{ duration: 1.1, delay: 0.25, ease: [0.76, 0, 0.24, 1] }}
-                  className="curtain pointer-events-none absolute inset-y-0 left-0 w-1/2"
-                />
-                <motion.div
-                  key={`r-${curtainKey}`}
-                  aria-hidden="true"
-                  initial={{ x: "0%" }}
-                  animate={stageInView ? { x: "101%" } : undefined}
-                  transition={{ duration: 1.1, delay: 0.25, ease: [0.76, 0, 0.24, 1] }}
-                  className="curtain curtain-right pointer-events-none absolute inset-y-0 right-0 w-1/2"
-                />
-              </AnimatePresence>
-            </motion.div>
+            ))}
           </div>
 
-          <div className="lg:col-span-5 space-y-6">
-            {/* Aspect Ratio Selector */}
-            <div className="space-y-2.5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[#F28C38]">
-                Social Format & Aspect Ratio
-              </p>
-              <div
-                role="radiogroup"
-                aria-label="Poster aspect ratio"
-                className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1"
+          <div className="mt-6 grid grid-cols-1 gap-8 lg:mt-0 lg:grid-cols-12 lg:items-start">
+            {/* Stage */}
+            <div ref={stageRef} className="flex justify-center lg:col-span-6" style={{ perspective: "1200px" }}>
+              <motion.div
+                key={`${revealKey}-${selected}-${aspectRatio}`}
+                initial={{ opacity: 0, scale: 0.92, rotateX: 10, y: 30 }}
+                animate={stageInView ? { opacity: 1, scale: 1, rotateX: tilt.rx, rotateY: tilt.ry, y: 0 } : undefined}
+                transition={{ type: "spring", stiffness: 190, damping: 22 }}
+                onMouseMove={handlePointerMove}
+                onMouseLeave={() => {
+                  setTilt({ rx: 0, ry: 0 });
+                  setGlare((g) => ({ ...g, on: false }));
+                }}
+                style={{ transformStyle: "preserve-3d" }}
+                className={`relative w-full overflow-hidden rounded-xl border border-[color:var(--ac2)]/45 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8),0_0_40px_-10px_rgba(var(--ac-rgb),0.28)] ${
+                  isVertical ? "aspect-[9/16] max-w-[330px]" : "aspect-[4/5] max-w-[460px]"
+                }`}
               >
-                {POSTER_ASPECT_RATIOS.map((opt) => {
-                  const isActive = aspectRatio === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={isActive}
-                      onClick={() => onChangeAspectRatio(opt.id)}
-                      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-left transition-all duration-200 cursor-pointer ${
-                        isActive
-                          ? "border-[#F28C38] bg-[#F28C38]/16 text-white shadow-[0_0_20px_rgba(242,140,56,0.2)]"
-                          : "border-white/12 bg-white/[0.03] text-slate-300 hover:border-[#D4AF37]/45 hover:bg-white/[0.07] hover:text-white"
-                      }`}
-                    >
-                      <span className="text-sm font-semibold">{opt.label}</span>
-                      <span className="text-xs font-bold tabular-nums text-[#F28C38]">
-                        {opt.ratioLabel}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                {posterPng ? (
+                  <img src={posterPng} alt={`${concept.concept} poster for ${input.brand}`} className="h-full w-full object-cover" draggable={false} />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-black/30">
+                    <FestiveGlyph kind={getFestivalMotif(input.festival).glyph} className="h-20 w-20" />
+                  </div>
+                )}
+                {pendingHere && (
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-black/70 py-2.5 text-xs font-semibold text-white backdrop-blur">
+                    <FestiveGlyph kind={getFestivalMotif(input.festival).glyph} className="h-5 w-5" />
+                    {getFestivalMotif(input.festival).working}: AI is painting this poster…
+                  </div>
+                )}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 mix-blend-overlay transition-opacity duration-300"
+                  style={{
+                    opacity: glare.on ? 1 : 0,
+                    background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,0.5), transparent 55%)`,
+                  }}
+                />
+              </motion.div>
             </div>
 
-            {/* Poster Copy Language Switch */}
-            {language !== "English" && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#D4AF37]">
-                  Poster Tagline Language
+            {/* Controls */}
+            <div className="space-y-6 lg:col-span-6">
+              <div className="hidden grid-cols-3 gap-4 lg:grid">
+                {thumbParams.map((p, i) => (
+                  <PosterThumb
+                    key={i}
+                    params={p}
+                    festival={input.festival}
+                    index={i}
+                    concept={concepts[i].concept}
+                    layout={concepts[i].layout}
+                    active={i === selected}
+                    pending={Boolean(artPending[`${i}|instagram_feed`])}
+                    onSelect={() => setSelected(i)}
+                  />
+                ))}
+              </div>
+
+              {artError && (
+                <p className="rounded-xl border border-[color:var(--ac)]/40 bg-[var(--ac)]/10 px-4 py-3 text-sm text-slate-200">
+                  AI artwork unavailable right now ({artError}). Showing designed festival artwork instead.
                 </p>
-                <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/12 bg-[#0A1022]/80 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setPosterCopyLang("regional")}
-                    className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                      posterCopyLang === "regional"
-                        ? "bg-[#F28C38] text-[#090E1A]"
-                        : "text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    {language}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPosterCopyLang("english")}
-                    className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                      posterCopyLang === "english"
-                        ? "bg-[#F28C38] text-[#090E1A]"
-                        : "text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    English
-                  </button>
+              )}
+
+              <div className="space-y-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--ac)]">Format</p>
+                <div role="radiogroup" aria-label="Poster format" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {POSTER_ASPECT_RATIOS.map((opt) => {
+                    const on = aspectRatio === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => onChangeAspectRatio(opt.id)}
+                        className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-left transition-all duration-200 cursor-pointer ${
+                          on
+                            ? "border-[color:var(--ac)] bg-[var(--ac)]/16 text-white"
+                            : "border-white/12 bg-white/[0.03] text-slate-300 hover:border-[color:var(--ac2)]/45 hover:text-white"
+                        }`}
+                      >
+                        <span className="text-sm font-semibold">{opt.label}</span>
+                        <span className="text-xs font-bold tabular-nums text-[color:var(--ac)]">{opt.ratioLabel}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            )}
 
-            <dl className="divide-y divide-white/10 border-y border-white/10 text-sm">
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="font-medium text-slate-400">Style Preset</dt>
-                <dd className="font-semibold text-[#F28C38]">{stylePreset}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="font-medium text-slate-400">Dimensions</dt>
-                <dd className="font-semibold text-white tabular-nums">
-                  {ratioSpec.width} × {ratioSpec.height} px ({ratioSpec.ratioLabel})
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="font-medium text-slate-400">Festival Motif</dt>
-                <dd className="font-semibold text-white">{festival}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="font-medium text-slate-400">Brand Lockup</dt>
-                <dd className="font-semibold text-white truncate max-w-[200px]">
-                  {brand}
-                </dd>
-              </div>
-            </dl>
+              {language !== "English" && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--ac2)]">Poster line</p>
+                  <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/12 bg-[#0A1022]/80 p-1">
+                    {(["english", "regional"] as const).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setCopyLang(k)}
+                        className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                          copyLang === k ? "bg-[var(--ac)] text-[#090E1A]" : "text-slate-300 hover:text-white"
+                        }`}
+                      >
+                        {k === "english" ? "English subline" : `${language} tagline`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            {posterPrompt && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-[#D4AF37]">
-                  Art Direction Prompt
-                </p>
-                <p className="text-sm leading-relaxed text-slate-200">
-                  {posterPrompt}
-                </p>
-              </div>
-            )}
+              <dl className="divide-y divide-white/10 border-y border-white/10 text-sm">
+                {[
+                  ["Concept", concept.concept],
+                  ["Headline", concept.headline],
+                  ["Call to action", concept.cta],
+                  ["Layout", concept.layout],
+                  ["Size", `${ratioSpec.width} × ${ratioSpec.height} px (${ratioSpec.ratioLabel})`],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between gap-4 py-2.5">
+                    <dt className="font-medium text-slate-400">{k}</dt>
+                    <dd className="max-w-[60%] truncate text-right font-semibold text-white">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              {concept.visual_prompt && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-[color:var(--ac2)]">Art direction</p>
+                  <p className="text-sm leading-relaxed text-slate-300">{concept.visual_prompt}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       </Reveal>
     </section>
   );

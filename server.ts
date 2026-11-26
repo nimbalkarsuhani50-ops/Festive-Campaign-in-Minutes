@@ -3,6 +3,9 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { runGenerate, runRegenerate } from "./lib/campaign.js";
+import { handleHistory } from "./lib/history.js";
+import { handleImage } from "./lib/images.js";
+import { handleAudio } from "./lib/audio.js";
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -17,6 +20,44 @@ app.post("/api/generate", async (req, res) => {
 app.post("/api/regenerate", async (req, res) => {
   const result = await runRegenerate(req.body);
   res.status(result.status).json(result.body);
+});
+
+app.get("/api/history", async (req, res) => {
+  const r = await handleHistory("GET", { id: req.query.id as string | undefined, limit: req.query.limit as string | undefined });
+  res.status(r.status).json(r.body);
+});
+
+app.post("/api/history", async (req, res) => {
+  const r = await handleHistory("POST", {}, req.body);
+  res.status(r.status).json(r.body);
+});
+
+app.get("/api/poster-image", async (req, res) => {
+  const r = await handleImage(req.query.models ? "MODELS" : "GET", { id: req.query.id as string | undefined });
+  if (r.binary) {
+    res.set("Cache-Control", "public, max-age=31536000, immutable").type(r.binary.mime).send(r.binary.data);
+    return;
+  }
+  res.status(r.status).json(r.body);
+});
+
+app.post("/api/poster-image", async (req, res) => {
+  const r = await handleImage("POST", {}, req.body);
+  res.status(r.status).json(r.body);
+});
+
+app.get("/api/reel-audio", async (req, res) => {
+  const r: any = await handleAudio("GET", { id: req.query.id as string | undefined });
+  if (r.binary) {
+    res.set("Cache-Control", "public, max-age=31536000, immutable").type(r.binary.mime).send(r.binary.data);
+    return;
+  }
+  res.status(r.status).json(r.body);
+});
+
+app.post("/api/reel-audio", async (req, res) => {
+  const r = await handleAudio("POST", {}, req.body);
+  res.status(r.status).json(r.body);
 });
 
 app.get("/api/health", (_req, res) => {
